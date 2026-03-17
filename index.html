@@ -205,12 +205,14 @@ h1,h2,h3,h4 { font-family:'Outfit',sans-serif; }
 textarea.input { min-height:80px; resize:vertical; }
 
 /* Modal/Sheet */
+html.modal-open, html.modal-open body { overflow:hidden !important; height:100% !important; touch-action:none; }
 .app.locked { overflow:hidden; height:100dvh; pointer-events:none; touch-action:none; }
 .modal-overlay {
   position:fixed; top:0; left:0; right:0; bottom:0;
   background:rgba(0,0,0,0.4); z-index:2000;
   display:flex; align-items:flex-end; justify-content:center;
   animation:fadeIn .2s;
+  touch-action:none;
 }
 .modal-sheet {
   background:var(--white); border-radius:20px 20px 0 0;
@@ -231,7 +233,10 @@ textarea.input { min-height:80px; resize:vertical; }
 }
 .modal-handle {
   width:36px; height:4px; background:var(--cream-dark);
-  border-radius:2px; margin:0 auto 16px;
+  border-radius:2px; margin:0 auto 12px; cursor:grab;
+}
+.modal-handle-zone {
+  padding:8px 0 4px; margin:-8px -20px 0; cursor:grab;
 }
 .modal-title { font-size:18px; font-weight:700; margin-bottom:16px; }
 .modal-overlay.z-high { z-index:3000; }
@@ -955,6 +960,27 @@ const app = createApp({
 
     // Track if any modal is open (used in template for .locked class)
     const anyModalOpen = computed(() => showAddMeal.value || showRecipeDetail.value || showAddRecipe.value || showFoodDB.value || showAddFood.value || showExportRecipe.value || showImportRecipe.value || showPhotoModal.value || showConfirmDuplicate.value || showBulkAddFoods.value);
+    watch(anyModalOpen, (open) => {
+      document.documentElement.classList.toggle('modal-open', open);
+    });
+
+    // Swipe-to-close for modal sheets
+    const swipeStartY = ref(0);
+    const swipeCloseTarget = ref('');
+    function onHandleTouchStart(e, target) {
+      swipeStartY.value = e.touches[0].clientY;
+      swipeCloseTarget.value = target;
+    }
+    function onHandleTouchEnd(e) {
+      if (!swipeCloseTarget.value) return;
+      const dy = e.changedTouches[0].clientY - swipeStartY.value;
+      if (dy > 60) closeModal(swipeCloseTarget.value);
+      swipeCloseTarget.value = '';
+    }
+    function closeModal(name) {
+      const map = {addMeal:showAddMeal, recipeDetail:showRecipeDetail, addRecipe:showAddRecipe, importRecipe:showImportRecipe, photoModal:showPhotoModal, foodDB:showFoodDB, bulkAddFoods:showBulkAddFoods};
+      if (map[name]) map[name].value = false;
+    }
 
     // Toast
     function showToast(msg) {
@@ -1627,6 +1653,7 @@ const app = createApp({
       renderCharts, getChartLabel, getHistoryWeekDays, getHistoryWeekLabel,
       uid, fuzzyMatch, hasAiKey, defaultPortion,
       getDayMacroValue, searchAndFill, mapIngredient, groupMealItems,
+      onHandleTouchStart, onHandleTouchEnd, closeModal,
       bulkAddFoods, confirmBulkAdd,
     };
   },
@@ -1907,9 +1934,9 @@ const app = createApp({
   </div><!-- end .app -->
 
   <!-- ===== ADD MEAL MODAL ===== -->
-  <div v-if="showAddMeal" class="modal-overlay" @touchmove.self.prevent @click.self="showAddMeal=false">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
+  <div v-if="showAddMeal" class="modal-overlay" @touchmove.prevent @click.self="showAddMeal=false">
+    <div class="modal-sheet" @touchmove.stop>
+      <div class="modal-handle-zone" @touchstart="onHandleTouchStart($event, 'addMeal')" @touchend="onHandleTouchEnd"><div class="modal-handle"></div></div>
       <div class="modal-title">{{ MEAL_SLOTS.find(s=>s.id===addMealSlot)?.emoji }} Ajouter un repas</div>
 
       <!-- Choose slot -->
@@ -2056,9 +2083,9 @@ const app = createApp({
   </div>
 
   <!-- ===== RECIPE DETAIL MODAL ===== -->
-  <div v-if="showRecipeDetail && activeRecipe" class="modal-overlay" @touchmove.self.prevent @click.self="showRecipeDetail=false">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
+  <div v-if="showRecipeDetail && activeRecipe" class="modal-overlay" @touchmove.prevent @click.self="showRecipeDetail=false">
+    <div class="modal-sheet" @touchmove.stop>
+      <div class="modal-handle-zone" @touchstart="onHandleTouchStart($event, 'recipeDetail')" @touchend="onHandleTouchEnd"><div class="modal-handle"></div></div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
         <span style="font-size:40px">{{ activeRecipe.emoji }}</span>
         <div style="flex:1">
@@ -2116,8 +2143,8 @@ const app = createApp({
   </div>
 
   <!-- ===== EXPORT RECIPE MODAL ===== -->
-  <div v-if="showExportRecipe && activeRecipe" class="modal-overlay" @touchmove.self.prevent @click.self="showExportRecipe=false">
-    <div class="modal-center">
+  <div v-if="showExportRecipe && activeRecipe" class="modal-overlay" @touchmove.prevent @click.self="showExportRecipe=false">
+    <div class="modal-center" @touchmove.stop>
       <div class="modal-title">📤 Exporter la recette</div>
       <div class="input-group">
         <div class="chips mb-8">
@@ -2137,9 +2164,9 @@ const app = createApp({
   </div>
 
   <!-- ===== ADD/EDIT RECIPE MODAL ===== -->
-  <div v-if="showAddRecipe && editRecipe" class="modal-overlay" @touchmove.self.prevent @click.self="showAddRecipe=false">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
+  <div v-if="showAddRecipe && editRecipe" class="modal-overlay" @touchmove.prevent @click.self="showAddRecipe=false">
+    <div class="modal-sheet" @touchmove.stop>
+      <div class="modal-handle-zone" @touchstart="onHandleTouchStart($event, 'addRecipe')" @touchend="onHandleTouchEnd"><div class="modal-handle"></div></div>
       <div class="modal-title">{{ editRecipe.isNew ? '➕ Nouvelle recette' : '✏️ Modifier la recette' }}</div>
       <div class="input-group">
         <label class="input-label">Nom</label>
@@ -2206,8 +2233,8 @@ const app = createApp({
   </div>
 
   <!-- ===== DUPLICATE WARNING ===== -->
-  <div v-if="showConfirmDuplicate && duplicateInfo" class="modal-overlay" @touchmove.self.prevent @click.self="showConfirmDuplicate=false">
-    <div class="modal-center">
+  <div v-if="showConfirmDuplicate && duplicateInfo" class="modal-overlay" @touchmove.prevent @click.self="showConfirmDuplicate=false">
+    <div class="modal-center" @touchmove.stop>
       <div class="modal-title">⚠️ Recettes similaires trouvées</div>
       <div style="font-size:13px;margin-bottom:12px">Ces recettes existantes semblent proches :</div>
       <div v-for="d in duplicateInfo.dupes" :key="d.id" class="card" style="margin:0 0 8px">
@@ -2221,9 +2248,9 @@ const app = createApp({
   </div>
 
   <!-- ===== IMPORT RECIPE MODAL ===== -->
-  <div v-if="showImportRecipe" class="modal-overlay" @touchmove.self.prevent @click.self="showImportRecipe=false">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
+  <div v-if="showImportRecipe" class="modal-overlay" @touchmove.prevent @click.self="showImportRecipe=false">
+    <div class="modal-sheet" @touchmove.stop>
+      <div class="modal-handle-zone" @touchstart="onHandleTouchStart($event, 'importRecipe')" @touchend="onHandleTouchEnd"><div class="modal-handle"></div></div>
       <div class="modal-title">📥 Importer une recette</div>
       <div class="input-group">
         <label class="input-label">IA utilisée</label>
@@ -2249,9 +2276,9 @@ const app = createApp({
   </div>
 
   <!-- ===== PHOTO RESULTS MODAL ===== -->
-  <div v-if="showPhotoModal" class="modal-overlay" @touchmove.self.prevent @click.self="showPhotoModal=false">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
+  <div v-if="showPhotoModal" class="modal-overlay" @touchmove.prevent @click.self="showPhotoModal=false">
+    <div class="modal-sheet" @touchmove.stop>
+      <div class="modal-handle-zone" @touchstart="onHandleTouchStart($event, 'photoModal')" @touchend="onHandleTouchEnd"><div class="modal-handle"></div></div>
       <div class="modal-title">📷 Aliments détectés</div>
       <div style="font-size:13px;color:var(--text-light);margin-bottom:12px">Confirmez ou modifiez les quantités :</div>
       <div v-for="(r, idx) in photoResults" :key="idx" class="ingredient-row">
@@ -2270,8 +2297,8 @@ const app = createApp({
   </div>
 
   <!-- ===== ADD/EDIT FOOD MODAL ===== -->
-  <div v-if="showAddFood && editFood" class="modal-overlay z-higher" @touchmove.self.prevent @click.self="showAddFood=false">
-    <div class="modal-center">
+  <div v-if="showAddFood && editFood" class="modal-overlay z-higher" @touchmove.prevent @click.self="showAddFood=false">
+    <div class="modal-center" @touchmove.stop>
       <div class="modal-title">{{ editFood.isNew ? '➕ Nouvel aliment' : '✏️ Modifier l\\'aliment' }}</div>
       <div class="input-row">
         <div class="input-group"><label class="input-label">Nom</label><input class="input" v-model="editFood.name"></div>
@@ -2315,9 +2342,9 @@ const app = createApp({
   </div>
 
   <!-- ===== FOOD DATABASE MODAL ===== -->
-  <div v-if="showFoodDB" class="modal-overlay" @touchmove.self.prevent @click.self="showFoodDB=false">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
+  <div v-if="showFoodDB" class="modal-overlay" @touchmove.prevent @click.self="showFoodDB=false">
+    <div class="modal-sheet" @touchmove.stop>
+      <div class="modal-handle-zone" @touchstart="onHandleTouchStart($event, 'foodDB')" @touchend="onHandleTouchEnd"><div class="modal-handle"></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div class="modal-title" style="margin-bottom:0">🥦 Base alimentaire</div>
         <button class="btn btn-sm btn-primary" @click="openNewFood">+ Ajouter</button>
@@ -2340,9 +2367,9 @@ const app = createApp({
   </div>
 
   <!-- ===== BULK ADD FOODS MODAL ===== -->
-  <div v-if="showBulkAddFoods" class="modal-overlay" @touchmove.self.prevent @click.self="showBulkAddFoods=false">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
+  <div v-if="showBulkAddFoods" class="modal-overlay" @touchmove.prevent @click.self="showBulkAddFoods=false">
+    <div class="modal-sheet" @touchmove.stop>
+      <div class="modal-handle-zone" @touchstart="onHandleTouchStart($event, 'bulkAddFoods')" @touchend="onHandleTouchEnd"><div class="modal-handle"></div></div>
       <div class="modal-title">🤖 Ajouter des aliments via IA</div>
       <div class="input-group">
         <label class="input-label">IA utilisée</label>
