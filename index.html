@@ -981,19 +981,44 @@ const app = createApp({
       if (addMealItems.value.length === 0) return;
       if (!meals.value[currentDate.value]) meals.value[currentDate.value] = {};
       if (!meals.value[currentDate.value][addMealSlot.value]) meals.value[currentDate.value][addMealSlot.value] = [];
+      const groupId = addMealFromRecipe.value ? uid() : null;
       addMealItems.value.forEach(item => {
-        meals.value[currentDate.value][addMealSlot.value].push({...item});
+        const entry = {...item};
+        if (addMealFromRecipe.value) {
+          entry._group = groupId;
+          entry._recipeName = addMealFromRecipe.value.name;
+          entry._recipeEmoji = addMealFromRecipe.value.emoji;
+        }
+        meals.value[currentDate.value][addMealSlot.value].push(entry);
       });
-      // Save last choices for this recipe
       if (addMealFromRecipe.value) {
         const key = addMealFromRecipe.value.id + '_' + addMealSlot.value;
         lastMealChoices.value[key] = {items:JSON.parse(JSON.stringify(addMealItems.value))};
-        // Increment usage count
         const r = recipes.value.find(x => x.id === addMealFromRecipe.value.id);
         if (r) r.usageCount = (r.usageCount || 0) + 1;
       }
       showAddMeal.value = false;
       showToast('Repas ajouté ✓');
+    }
+
+    // Group meal items by recipe for display
+    function groupMealItems(items) {
+      if (!items || !items.length) return [];
+      const groups = [];
+      let currentGroup = null;
+      items.forEach((item, idx) => {
+        if (item._group) {
+          if (!currentGroup || currentGroup.groupId !== item._group) {
+            currentGroup = { groupId: item._group, recipeName: item._recipeName, recipeEmoji: item._recipeEmoji, items: [], startIdx: idx };
+            groups.push(currentGroup);
+          }
+          currentGroup.items.push({ ...item, originalIdx: idx });
+        } else {
+          currentGroup = null;
+          groups.push({ groupId: null, items: [{ ...item, originalIdx: idx }] });
+        }
+      });
+      return groups;
     }
 
     function removeMealItem(slotId, index) {
@@ -1191,6 +1216,15 @@ const app = createApp({
       reader.readAsText(file);
     }
 
+    function resetAll() {
+      if (!confirm('Supprimer toutes les données et revenir à l\'état par défaut ?')) return;
+      if (!confirm('Cette action est irréversible. Confirmer ?')) return;
+      localStorage.removeItem('vegtrack_data');
+      localStorage.removeItem('vegtrack_api_key');
+      localStorage.removeItem('vegtrack_openai_key');
+      location.reload();
+    }
+
     // Import recipe from URL/text
     const importRecipeUrl = ref('');
     const importRecipeText = ref('');
@@ -1238,19 +1272,30 @@ const app = createApp({
     function hasAiKey() { return (aiProvider.value==='claude' && apiKey.value) || (aiProvider.value==='chatgpt' && openaiKey.value); }
     function defaultPortion(fid) { return PORTIONS[fid] || 100; }
     async function aiCall(messages, useTools) {
-      if (!hasAiKey()) { showToast('Clé API '+(aiProvider.value==='claude'?'Claude':'OpenAI')+' requise (Réglages)'); throw new Error('no key'); }
-      if (aiProvider.value === 'chatgpt') {
-        const resp = await fetch('https://api.openai.com/v1/chat/completions', {method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+openaiKey.value},body:JSON.stringify({model:'gpt-4o',max_tokens:2000,messages})});
-        const data = await resp.json();
-        return data.choices?.[0]?.message?.content || '';
-      } else {
-        const headers = {'Content-Type':'application/json','x-api-key':apiKey.value,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
-        const body = {model:'claude-sonnet-4-20250514',max_tokens:2000,messages};
-        if (useTools) body.tools = [{type:'web_search_20250305',name:'web_search'}];
-        const resp = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',headers,body:JSON.stringify(body)});
-        const data = await resp.json();
-        const tb = data.content?.find(b => b.type==='text');
-        return tb?.text || data.content?.[0]?.text || '';
+      if (!hasAiKey()) {
+        const provider = aiProvider.value === 'claude' ? 'Claude' : 'OpenAI';
+        showToast('⚠️ Clé API ' + provider + ' manquante → Réglages');
+        throw new Error('Clé API ' + provider + ' non configurée. Allez dans Réglages pour l\'ajouter.');
+      }
+      try {
+        if (aiProvider.value === 'chatgpt') {
+          const resp = await fetch('https://api.openai.com/v1/chat/completions', {method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+openaiKey.value},body:JSON.stringify({model:'gpt-4o',max_tokens:2000,messages})});
+          if (!resp.ok) { const err = await resp.json().catch(()=>({})); throw new Error(err.error?.message || 'Erreur API OpenAI ('+resp.status+')'); }
+          const data = await resp.json();
+          return data.choices?.[0]?.message?.content || '';
+        } else {
+          const headers = {'Content-Type':'application/json','x-api-key':apiKey.value,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
+          const body = {model:'claude-sonnet-4-20250514',max_tokens:2000,messages};
+          if (useTools) body.tools = [{type:'web_search_20250305',name:'web_search'}];
+          const resp = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',headers,body:JSON.stringify(body)});
+          if (!resp.ok) { const err = await resp.json().catch(()=>({})); throw new Error(err.error?.message || 'Erreur API Claude ('+resp.status+')'); }
+          const data = await resp.json();
+          const tb = data.content?.find(b => b.type==='text');
+          return tb?.text || data.content?.[0]?.text || '';
+        }
+      } catch(e) {
+        if (e.message.includes('Clé API')) throw e;
+        throw new Error('Erreur IA: ' + e.message);
       }
     }
 
@@ -1261,7 +1306,8 @@ const app = createApp({
 
     async function processPhoto(event) {
       const file = event.target.files[0];
-      if (!file || !hasAiKey()) { showToast('Clé API '+(aiProvider.value==='claude'?'Claude':'OpenAI')+' requise'); return; }
+      if (!file) return;
+      if (!hasAiKey()) { showToast('⚠️ Clé API '+(aiProvider.value==='claude'?'Claude':'OpenAI')+' manquante → Réglages'); return; }
       photoLoading.value = true;
       try {
         const base64 = await new Promise((resolve, reject) => {
@@ -1311,7 +1357,7 @@ const app = createApp({
         const parsed = JSON.parse(text);
         searchFoodLoading.value = false;
         return parsed;
-      } catch(e) { showToast('Erreur recherche'); }
+      } catch(e) { showToast(e.message || 'Erreur recherche'); }
       searchFoodLoading.value = false;
       return null;
     }
@@ -1332,15 +1378,19 @@ const app = createApp({
       const today = new Date(todayStr()+'T12:00:00');
       let start, end;
       if (macroChartPeriod.value === 'week') {
-        end = new Date(today); end.setDate(end.getDate() - macroChartOffset.value * 7);
-        start = new Date(end); start.setDate(start.getDate() - 6);
+        const monday = getMonday(today);
+        monday.setDate(monday.getDate() - macroChartOffset.value * 7);
+        start = new Date(monday);
+        end = new Date(monday); end.setDate(monday.getDate() + 6);
       } else if (macroChartPeriod.value === 'month') {
-        end = new Date(today); end.setMonth(end.getMonth() - macroChartOffset.value);
-        start = new Date(end); start.setDate(1);
-        end = new Date(start); end.setMonth(end.getMonth() + 1); end.setDate(end.getDate() - 1);
+        const ref = new Date(today); ref.setMonth(ref.getMonth() - macroChartOffset.value);
+        start = new Date(ref.getFullYear(), ref.getMonth(), 1);
+        end = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
       } else {
-        end = new Date(today); end.setDate(end.getDate() - macroChartOffset.value * 14);
-        start = new Date(end); start.setDate(start.getDate() - 13);
+        const monday = getMonday(today);
+        monday.setDate(monday.getDate() - macroChartOffset.value * 14);
+        start = new Date(monday);
+        end = new Date(monday); end.setDate(monday.getDate() + 13);
       }
       const days = [];
       const d = new Date(start);
@@ -1391,19 +1441,27 @@ const app = createApp({
     }, {deep:true});
 
     // History by week
+    function getMonday(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day; // Sunday = go back 6, otherwise go to Monday
+      d.setDate(d.getDate() + diff);
+      return d;
+    }
     function getHistoryWeekDays() {
       const today = new Date(todayStr()+'T12:00:00');
-      const end = new Date(today); end.setDate(end.getDate() - historyWeekOffset.value * 7);
-      const start = new Date(end); start.setDate(start.getDate() - 6);
+      const monday = getMonday(today);
+      monday.setDate(monday.getDate() - historyWeekOffset.value * 7);
+      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
       const days = [];
-      const d = new Date(end);
-      while (d >= start) { days.push(d.toISOString().split('T')[0]); d.setDate(d.getDate() - 1); }
+      const d = new Date(sunday);
+      while (d >= monday) { days.push(d.toISOString().split('T')[0]); d.setDate(d.getDate() - 1); }
       return days;
     }
     function getHistoryWeekLabel() {
       const days = getHistoryWeekDays();
       if (!days.length) return '';
-      return formatDateShort(days[days.length-1]) + ' → ' + formatDateShort(days[0]);
+      return 'Lun. ' + formatDateShort(days[days.length-1]) + ' → Dim. ' + formatDateShort(days[0]);
     }
 
     // Filled days
@@ -1493,13 +1551,13 @@ const app = createApp({
       openRecipe, saveRecipeServings, openNewRecipe, saveRecipe, finalizeSaveRecipe, deleteRecipe,
       exportRecipeText, exportIngredientsText, copyText, exportOptions,
       openNewFood, saveFood, calcMacros, calcMacrosPerServing, scaleIngredients,
-      exportAll, importData,
+      exportAll, importData, resetAll,
       importRecipeUrl, importRecipeText, importLoading, importRecipeFromUrl, importRecipeFromText,
       processPhoto, photoLoading, photoResults, confirmPhotoResults,
       searchFoodNutrition, searchFoodLoading,
       renderCharts, getChartLabel, getHistoryWeekDays, getHistoryWeekLabel,
       uid, fuzzyMatch, hasAiKey, defaultPortion,
-      getDayMacroValue, searchAndFill, mapIngredient,
+      getDayMacroValue, searchAndFill, mapIngredient, groupMealItems,
       bulkAddFoods, confirmBulkAdd,
     };
   },
@@ -1572,15 +1630,20 @@ const app = createApp({
         <button class="meal-slot-add" @click.stop="openAddMeal(slot.id)">+</button>
       </div>
       <div class="meal-items" v-if="(dayMeals[slot.id]||[]).length">
-        <div class="meal-item" v-for="(item, idx) in dayMeals[slot.id]" :key="idx">
-          <div class="meal-item-left">
-            <span class="meal-item-emoji">{{ foodsMap[item.fid]?.emoji || '🌱' }}</span>
-            <span class="meal-item-name">{{ foodsMap[item.fid]?.name || 'Inconnu' }}</span>
-            <span class="meal-item-qty">{{ item.qty }} {{ item.unit }}</span>
+        <template v-for="(group, gi) in groupMealItems(dayMeals[slot.id])" :key="gi">
+          <div v-if="group.recipeName" style="font-size:11px;font-weight:600;color:var(--green);padding:6px 0 2px;border-top:1px solid var(--cream-dark)">
+            {{ group.recipeEmoji }} {{ group.recipeName }}
           </div>
-          <span class="meal-item-cals">{{ Math.round((foodsMap[item.fid]?.per100g?.cal||0) * item.qty / 100) }} kcal</span>
-          <button class="meal-item-del" @click="removeMealItem(slot.id, idx)">×</button>
-        </div>
+          <div class="meal-item" v-for="mi in group.items" :key="mi.originalIdx" :style="group.recipeName ? {paddingLeft:'8px'} : {}">
+            <div class="meal-item-left">
+              <span class="meal-item-emoji">{{ foodsMap[mi.fid]?.emoji || '🌱' }}</span>
+              <span class="meal-item-name">{{ foodsMap[mi.fid]?.name || 'Inconnu' }}</span>
+              <span class="meal-item-qty">{{ mi.qty }} {{ mi.unit }}</span>
+            </div>
+            <span class="meal-item-cals">{{ Math.round((foodsMap[mi.fid]?.per100g?.cal||0) * mi.qty / 100) }} kcal</span>
+            <button class="meal-item-del" @click="removeMealItem(slot.id, mi.originalIdx)">×</button>
+          </div>
+        </template>
       </div>
     </div>
   </template>
@@ -1723,6 +1786,11 @@ const app = createApp({
       <button class="btn btn-secondary btn-full" @click="showFoodDB=true">Gérer les aliments ({{ foods.length }})</button>
       <button class="btn btn-outline btn-full" @click="showBulkAddFoods=true">🤖 Ajouter des aliments via IA</button>
     </div>
+    <div class="section-title">🔄 Réinitialisation</div>
+    <div class="card">
+      <button class="btn btn-danger btn-full" @click="resetAll">🗑️ Supprimer toutes les données</button>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center">Revient à l'état par défaut de l'application</div>
+    </div>
   </template>
 
   <!-- ===== BOTTOM NAV ===== -->
@@ -1798,21 +1866,39 @@ const app = createApp({
           <span class="search-icon">🔍</span>
           <input v-model="addMealSearch" placeholder="Rechercher un aliment...">
         </div>
+
+        <!-- Selected items with macros -->
+        <div v-if="addMealItems.length" style="background:var(--green-pale);border-radius:var(--radius);padding:12px;margin-bottom:12px">
+          <div style="font-weight:700;font-size:12px;color:var(--green);margin-bottom:8px">🛒 Sélection ({{ addMealItems.length }})</div>
+          <div v-for="(item, idx) in addMealItems" :key="idx" style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid rgba(74,124,89,0.15)">
+            <span style="font-size:16px">{{ foodsMap[item.fid]?.emoji }}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ foodsMap[item.fid]?.name }}</div>
+              <div style="font-size:10px;color:var(--text-light)">{{ Math.round((foodsMap[item.fid]?.per100g?.cal||0)*item.qty/100) }} kcal · {{ Math.round((foodsMap[item.fid]?.per100g?.prot||0)*item.qty/100*10)/10 }}g prot</div>
+            </div>
+            <input type="number" class="input" style="width:55px;padding:4px 6px;text-align:center;font-size:12px;background:var(--white)" v-model.number="item.qty">
+            <span style="font-size:10px;color:var(--text-muted)">g</span>
+            <button class="meal-item-del" @click="addMealItems.splice(idx,1)">×</button>
+          </div>
+          <div style="display:flex;justify-content:space-around;text-align:center;font-size:11px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(74,124,89,0.2)">
+            <div><span style="font-weight:700;color:var(--terracotta)">{{ calcMacros(addMealItems, foodsMap).cal }}</span> kcal</div>
+            <div><span style="font-weight:700;color:var(--green-dark)">{{ calcMacros(addMealItems, foodsMap).prot }} g</span> prot</div>
+            <div><span style="font-weight:700">{{ calcMacros(addMealItems, foodsMap).carb }} g</span> gluc</div>
+            <div><span style="font-weight:700">{{ calcMacros(addMealItems, foodsMap).fat }} g</span> lip</div>
+          </div>
+        </div>
+
+        <!-- Food list -->
         <div style="max-height:40vh;overflow-y:auto">
           <div v-for="f in foods.filter(f => !addMealSearch || f.name.toLowerCase().includes(addMealSearch.toLowerCase()))" :key="f.id" class="food-row" @click="addFoodToMeal(f)" style="cursor:pointer">
             <span class="food-emoji">{{ f.emoji }}</span>
-            <span class="food-name">{{ f.name }}</span>
-            <span class="food-macro">{{ f.per100g.cal }} kcal/100g</span>
+            <div style="flex:1;min-width:0">
+              <div class="food-name">{{ f.name }}</div>
+              <div style="font-size:10px;color:var(--text-muted)">{{ defaultPortion(f.id) }}g : {{ Math.round(f.per100g.cal * defaultPortion(f.id) / 100) }} kcal · {{ Math.round(f.per100g.prot * defaultPortion(f.id) / 100 * 10)/10 }}g prot</div>
+            </div>
           </div>
         </div>
-        <div v-if="addMealItems.length" class="divider"></div>
-        <div v-for="(item, idx) in addMealItems" :key="idx" class="ingredient-row">
-          <span>{{ foodsMap[item.fid]?.emoji }}</span>
-          <span class="ingr-name">{{ foodsMap[item.fid]?.name }}</span>
-          <input type="number" class="input" style="width:60px;padding:4px 6px;text-align:center" v-model.number="item.qty">
-          <span style="font-size:11px;color:var(--text-muted)">g</span>
-          <button class="meal-item-del" @click="addMealItems.splice(idx,1)">×</button>
-        </div>
+
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="btn btn-outline flex-1" @click="addMealMode='choose'">← Retour</button>
           <button class="btn btn-primary flex-1" @click="confirmAddMeal" :disabled="!addMealItems.length">Ajouter ✓</button>
