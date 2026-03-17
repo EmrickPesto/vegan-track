@@ -991,11 +991,12 @@ const app = createApp({
     }
 
     function confirmAddMeal() {
-      if (addMealItems.value.length === 0) return;
+      const items = addMealItems.value.filter(i => i.qty > 0);
+      if (items.length === 0) return;
       if (!meals.value[currentDate.value]) meals.value[currentDate.value] = {};
       if (!meals.value[currentDate.value][addMealSlot.value]) meals.value[currentDate.value][addMealSlot.value] = [];
       const groupId = addMealFromRecipe.value ? uid() : null;
-      addMealItems.value.forEach(item => {
+      items.forEach(item => {
         const entry = {...item};
         if (addMealFromRecipe.value) {
           entry._group = groupId;
@@ -1006,7 +1007,7 @@ const app = createApp({
       });
       if (addMealFromRecipe.value) {
         const key = addMealFromRecipe.value.id + '_' + addMealSlot.value;
-        lastMealChoices.value[key] = {items:JSON.parse(JSON.stringify(addMealItems.value))};
+        lastMealChoices.value[key] = {items:JSON.parse(JSON.stringify(items))};
         const r = recipes.value.find(x => x.id === addMealFromRecipe.value.id);
         if (r) r.usageCount = (r.usageCount || 0) + 1;
       }
