@@ -836,22 +836,30 @@ const app = createApp({
     const mealPortionScale = ref(1);
     const mealPortionBase = ref([]);
     const mealOriginalFids = ref([]);
-    const mealFromSaved = ref(false); // true if loaded from last time's values
+    const mealSavedSnapshot = ref(null); // snapshot of saved items from last time
 
     function getRecipeDefaultItems(recipe) {
       const scaled = scaleIngredients(recipe.ingredients, recipe.servings, 1);
       return scaled.map(i => ({fid:i.fid, qty:i.qty, unit:i.unit}));
     }
 
+    function itemsMatch(a, b) {
+      if (!a || !b || a.length !== b.length) return false;
+      return a.every((item, i) => item.fid === b[i].fid && Math.abs(item.qty - b[i].qty) < 0.01);
+    }
+
     const mealIsModified = computed(() => {
       if (!addMealFromRecipe.value) return false;
       const defaults = getRecipeDefaultItems(addMealFromRecipe.value);
-      const current = addMealItems.value;
-      if (current.length !== defaults.length) return true;
-      return defaults.some((d, i) => {
-        const c = current[i];
-        return !c || c.fid !== d.fid || Math.abs(c.qty - d.qty) > 0.01;
-      });
+      return !itemsMatch(addMealItems.value, defaults);
+    });
+
+    const mealModifiedLabel = computed(() => {
+      if (!mealIsModified.value) return '';
+      if (mealSavedSnapshot.value && itemsMatch(addMealItems.value, mealSavedSnapshot.value)) {
+        return 'saved';
+      }
+      return 'manual';
     });
     const showMorePrevious = ref(false);
 
@@ -972,7 +980,7 @@ const app = createApp({
       addMealItems.value = [];
       addMealFromRecipe.value = null;
       mealOriginalFids.value = [];
-      mealFromSaved.value = false;
+      mealSavedSnapshot.value = null;
       showMorePrevious.value = false;
       showAddMeal.value = true;
     }
@@ -994,10 +1002,10 @@ const app = createApp({
       const saved = lastMealChoices.value[key];
       if (saved && saved.items) {
         addMealItems.value = JSON.parse(JSON.stringify(saved.items));
-        mealFromSaved.value = true;
+        mealSavedSnapshot.value = JSON.parse(JSON.stringify(saved.items));
       } else {
         addMealItems.value = getRecipeDefaultItems(recipe);
-        mealFromSaved.value = false;
+        mealSavedSnapshot.value = null;
       }
       mealPortionBase.value = addMealItems.value.map(i => i.qty);
       mealPortionScale.value = 1;
@@ -1009,7 +1017,6 @@ const app = createApp({
       addMealItems.value = getRecipeDefaultItems(addMealFromRecipe.value);
       mealPortionBase.value = addMealItems.value.map(i => i.qty);
       mealPortionScale.value = 1;
-      mealFromSaved.value = false;
     }
 
     function scaleMealPortion(newScale) {
@@ -1597,7 +1604,7 @@ const app = createApp({
       showAddFood, showMacroDetail, showExportRecipe, showImportRecipe, showPhotoModal, showConfirmDuplicate,
       duplicateInfo, showBulkAddFoods, bulkFoodsText, bulkLoading, bulkResults, showMorePrevious,
       recipeSearch, recipeCatFilter, foodSearch, addMealSearch, addMealMode, addMealRecipeCat,
-      editRecipe, editFood, recipeServingsOverride, addMealItems, addMealFromRecipe, mealPortionScale, mealIsModified, mealFromSaved,
+      editRecipe, editFood, recipeServingsOverride, addMealItems, addMealFromRecipe, mealPortionScale, mealIsModified, mealModifiedLabel,
       foodsMap, dayMeals, dayMacros, filteredRecipes, filteredFoods, filledDays,
       MEAL_SLOTS, FOOD_CATS, MACRO_KEYS,
       macroChartPeriod, macroChartOffset, historyWeekOffset,
@@ -1994,7 +2001,7 @@ const app = createApp({
           </div>
         </div>
         <div v-if="addMealFromRecipe && mealIsModified" style="display:flex;align-items:center;justify-content:space-between;background:var(--terracotta-light);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px">
-          <span style="font-size:12px;color:var(--terracotta)">{{ mealFromSaved ? '📌 Quantités de la dernière fois' : '✏️ Quantités modifiées' }}</span>
+          <span style="font-size:12px;color:var(--terracotta)">{{ mealModifiedLabel==='saved' ? '📌 Quantités de la dernière fois' : '✏️ Quantités modifiées' }}</span>
           <button class="btn btn-sm btn-outline" style="padding:4px 10px;font-size:11px" @click="resetToRecipeDefaults">Recette originale</button>
         </div>
         <div style="font-size:13px;color:var(--text-light);margin-bottom:8px">Ajustez les quantités consommées :</div>
