@@ -205,19 +205,20 @@ h1,h2,h3,h4 { font-family:'Outfit',sans-serif; }
 textarea.input { min-height:80px; resize:vertical; }
 
 /* Modal/Sheet */
-body.modal-open { overflow:hidden; position:fixed; width:100%; }
+body.modal-open { overflow:hidden; }
 .modal-overlay {
   position:fixed; top:0; left:0; right:0; bottom:0;
   background:rgba(0,0,0,0.4); z-index:2000;
   display:flex; align-items:flex-end; justify-content:center;
   animation:fadeIn .2s;
-  overscroll-behavior:contain;
+  touch-action:none;
 }
 .modal-sheet {
   background:var(--white); border-radius:20px 20px 0 0;
   width:100%; max-width:500px; max-height:92vh;
   overflow-y:auto; -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
+  touch-action:pan-y;
   padding:12px 20px calc(20px + var(--safe-bottom));
   animation:slideUp .3s ease-out;
 }
@@ -226,6 +227,7 @@ body.modal-open { overflow:hidden; position:fixed; width:100%; }
   width:90%; max-width:440px; max-height:85vh;
   overflow-y:auto; -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
+  touch-action:pan-y;
   padding:24px;
   animation:scaleIn .2s ease-out;
   align-self:center;
@@ -954,18 +956,40 @@ const app = createApp({
     watch([foods, recipes, meals, goals, apiKey, openaiKey, aiProvider, darkMode, lastMealChoices], () => saveData(), {deep:true});
     watch(darkMode, (v) => document.documentElement.classList.toggle('dark', v));
 
-    // Lock body scroll when any modal is open
+    // Lock body scroll when any modal is open (iOS-safe)
     const anyModalOpen = computed(() => showAddMeal.value || showRecipeDetail.value || showAddRecipe.value || showFoodDB.value || showAddFood.value || showExportRecipe.value || showImportRecipe.value || showPhotoModal.value || showConfirmDuplicate.value || showBulkAddFoods.value);
-    let savedScrollY = 0;
+
+    let touchStartY = 0;
+    function onTouchStart(e) { touchStartY = e.touches[0].clientY; }
+    function preventBgScroll(e) {
+      let scrollEl = null;
+      let el = e.target;
+      while (el && el !== document.body) {
+        if (el.classList && (el.classList.contains('modal-sheet') || el.classList.contains('modal-center'))) {
+          scrollEl = el; break;
+        }
+        // Also allow scroll in inner scrollable divs
+        if (el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY !== 'visible' && getComputedStyle(el).overflowY !== 'hidden') {
+          scrollEl = el; break;
+        }
+        el = el.parentElement;
+      }
+      if (!scrollEl) { e.preventDefault(); return; }
+      const dy = e.touches[0].clientY - touchStartY;
+      const atTop = scrollEl.scrollTop <= 0 && dy > 0;
+      const atBottom = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 1 && dy < 0;
+      if (atTop || atBottom) e.preventDefault();
+    }
+
     watch(anyModalOpen, (open) => {
       if (open) {
-        savedScrollY = window.scrollY;
         document.body.classList.add('modal-open');
-        document.body.style.top = -savedScrollY + 'px';
+        document.addEventListener('touchstart', onTouchStart, {passive: true});
+        document.addEventListener('touchmove', preventBgScroll, {passive: false});
       } else {
         document.body.classList.remove('modal-open');
-        document.body.style.top = '';
-        window.scrollTo(0, savedScrollY);
+        document.removeEventListener('touchstart', onTouchStart);
+        document.removeEventListener('touchmove', preventBgScroll);
       }
     });
 
