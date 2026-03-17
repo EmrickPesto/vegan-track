@@ -127,7 +127,7 @@ h1,h2,h3,h4 { font-family:'Outfit',sans-serif; }
 .meal-slot-info { display:flex; align-items:center; gap:10px; }
 .meal-slot-emoji { font-size:22px; }
 .meal-slot-name { font-weight:600; font-size:14px; }
-.meal-slot-cals { font-size:12px; color:var(--text-light); }
+.meal-slot-cals { font-size:11px; color:var(--text-light); line-height:1.4; }
 .meal-slot-add {
   width:32px; height:32px; border-radius:50%;
   background:var(--green-pale); border:none; cursor:pointer;
@@ -1626,7 +1626,7 @@ const app = createApp({
           <div>
             <div class="meal-slot-name">{{ slot.name }}</div>
             <div class="meal-slot-cals" v-if="(dayMeals[slot.id]||[]).length">
-              {{ calcMacros(dayMeals[slot.id], foodsMap).cal }} kcal
+              {{ calcMacros(dayMeals[slot.id], foodsMap).cal }} kcal · {{ calcMacros(dayMeals[slot.id], foodsMap).prot }}g prot · {{ calcMacros(dayMeals[slot.id], foodsMap).carb }}g gluc · {{ calcMacros(dayMeals[slot.id], foodsMap).fat }}g lip · {{ calcMacros(dayMeals[slot.id], foodsMap).fib }}g fib
             </div>
           </div>
         </div>
@@ -1643,7 +1643,7 @@ const app = createApp({
               <span class="meal-item-name">{{ foodsMap[mi.fid]?.name || 'Inconnu' }}</span>
               <span class="meal-item-qty">{{ mi.qty }} {{ mi.unit }}</span>
             </div>
-            <span class="meal-item-cals">{{ Math.round((foodsMap[mi.fid]?.per100g?.cal||0) * mi.qty / 100) }} kcal</span>
+            <span class="meal-item-cals">{{ Math.round((foodsMap[mi.fid]?.per100g?.cal||0) * mi.qty / 100) }} kcal · {{ Math.round((foodsMap[mi.fid]?.per100g?.prot||0) * mi.qty / 100 * 10)/10 }}g prot</span>
             <button class="meal-item-del" @click="removeMealItem(slot.id, mi.originalIdx)">×</button>
           </div>
         </template>
