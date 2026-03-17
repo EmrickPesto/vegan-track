@@ -835,6 +835,7 @@ const app = createApp({
     const addMealFromRecipe = ref(null);
     const mealPortionScale = ref(1);
     const mealPortionBase = ref([]);
+    const mealOriginalFids = ref([]);
     const showMorePrevious = ref(false);
 
     // Computed
@@ -953,6 +954,7 @@ const app = createApp({
       addMealRecipeCat.value = slotId;
       addMealItems.value = [];
       addMealFromRecipe.value = null;
+      mealOriginalFids.value = [];
       showMorePrevious.value = false;
       showAddMeal.value = true;
     }
@@ -969,6 +971,8 @@ const app = createApp({
 
     function addRecipeToMeal(recipe) {
       addMealFromRecipe.value = recipe;
+      // Track all original recipe ingredient fids
+      mealOriginalFids.value = recipe.ingredients.map(i => i.fid);
       const key = recipe.id + '_' + addMealSlot.value;
       const saved = lastMealChoices.value[key];
       if (saved && saved.items) {
@@ -1007,7 +1011,13 @@ const app = createApp({
       });
       if (addMealFromRecipe.value) {
         const key = addMealFromRecipe.value.id + '_' + addMealSlot.value;
-        lastMealChoices.value[key] = {items:JSON.parse(JSON.stringify(items))};
+        // Save full original recipe items with current quantities (including 0g)
+        // Deleted items are re-added at 0g so they appear next time
+        const fullItems = mealOriginalFids.value.map(fid => {
+          const current = addMealItems.value.find(i => i.fid === fid);
+          return current ? {...current} : {fid, qty:0, unit:'g'};
+        });
+        lastMealChoices.value[key] = {items:JSON.parse(JSON.stringify(fullItems))};
         const r = recipes.value.find(x => x.id === addMealFromRecipe.value.id);
         if (r) r.usageCount = (r.usageCount || 0) + 1;
       }
