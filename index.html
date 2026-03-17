@@ -740,6 +740,7 @@ function todayStr() { return new Date().toISOString().split('T')[0]; }
 function formatDate(d) {
   const dt = new Date(d+'T12:00:00');
   const opts = {weekday:'long',day:'numeric',month:'long'};
+  if (dt.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
   return dt.toLocaleDateString('fr-FR',opts);
 }
 function calcMacros(items, foodsMap) {
@@ -1371,7 +1372,9 @@ const app = createApp({
 
     function formatDateShort(d) {
       const dt = new Date(d+'T12:00:00');
-      return dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'});
+      const opts = {weekday:'short',day:'numeric'};
+      if (dt.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+      return dt.toLocaleDateString('fr-FR',opts);
     }
 
     function getChartDays() {
@@ -1631,10 +1634,10 @@ const app = createApp({
       </div>
       <div class="meal-items" v-if="(dayMeals[slot.id]||[]).length">
         <template v-for="(group, gi) in groupMealItems(dayMeals[slot.id])" :key="gi">
-          <div v-if="group.recipeName" style="font-size:11px;font-weight:600;color:var(--green);padding:6px 0 2px;border-top:1px solid var(--cream-dark)">
+          <div v-if="group.recipeName" style="font-size:13px;font-weight:600;color:var(--green);padding:8px 0 2px;border-top:1px solid var(--cream-dark)">
             {{ group.recipeEmoji }} {{ group.recipeName }}
           </div>
-          <div class="meal-item" v-for="mi in group.items" :key="mi.originalIdx" :style="group.recipeName ? {paddingLeft:'8px'} : {}">
+          <div class="meal-item" v-for="mi in group.items" :key="mi.originalIdx" :style="group.recipeName ? {paddingLeft:'20px'} : {}">
             <div class="meal-item-left">
               <span class="meal-item-emoji">{{ foodsMap[mi.fid]?.emoji || '🌱' }}</span>
               <span class="meal-item-name">{{ foodsMap[mi.fid]?.name || 'Inconnu' }}</span>
