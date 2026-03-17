@@ -1,0 +1,2052 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#4A7C59">
+<link rel="manifest" href="manifest.json">
+<title>VegTrack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --green: #4A7C59;
+  --green-light: #6B9E7A;
+  --green-pale: #E8F0EA;
+  --green-dark: #365A41;
+  --cream: #F8F5F0;
+  --cream-dark: #EDE8E0;
+  --terracotta: #C17347;
+  --terracotta-light: #F0D5C4;
+  --coral: #E8836B;
+  --warm-gray: #8A8078;
+  --text: #2D2A26;
+  --text-light: #6B6560;
+  --text-muted: #A09A93;
+  --white: #FFFFFF;
+  --shadow-sm: 0 1px 3px rgba(45,42,38,0.06);
+  --shadow-md: 0 4px 12px rgba(45,42,38,0.08);
+  --shadow-lg: 0 8px 24px rgba(45,42,38,0.12);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 6px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-height: 72px;
+}
+.dark {
+  --cream: #1A1A1A;
+  --cream-dark: #252525;
+  --white: #222222;
+  --text: #E8E4DF;
+  --text-light: #A09A93;
+  --text-muted: #6B6560;
+  --green-pale: #2A3D2F;
+  --terracotta-light: #3D2A1E;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  font-family:'DM Sans',sans-serif;
+  background:var(--cream);
+  color:var(--text);
+  min-height:100vh;
+  min-height:100dvh;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4 { font-family:'Outfit',sans-serif; }
+.app { min-height:100vh; min-height:100dvh; padding-bottom:calc(var(--nav-height) + var(--safe-bottom) + 10px); }
+
+/* Navigation */
+.nav {
+  position:fixed; bottom:0; left:0; right:0; z-index:1000;
+  background:var(--white);
+  border-top:1px solid var(--cream-dark);
+  display:flex; justify-content:space-around; align-items:center;
+  padding:8px 0 calc(8px + var(--safe-bottom));
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+}
+.nav-item {
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:6px 16px; border:none; background:none; cursor:pointer;
+  color:var(--text-muted); font-size:10px; font-family:'DM Sans',sans-serif;
+  transition:all .2s;
+}
+.nav-item.active { color:var(--green); }
+.nav-item svg { width:24px; height:24px; }
+.nav-item.add-btn {
+  background:var(--green); color:white; border-radius:50%;
+  width:52px; height:52px; padding:0; margin-top:-20px;
+  box-shadow:0 4px 12px rgba(74,124,89,0.35);
+  justify-content:center; font-size:0;
+}
+.nav-item.add-btn svg { width:28px; height:28px; }
+
+/* Header */
+.header {
+  padding:16px 20px 12px;
+  padding-top:calc(16px + env(safe-area-inset-top, 0px));
+  background:var(--white);
+  border-bottom:1px solid var(--cream-dark);
+}
+.header-title { font-size:26px; font-weight:700; color:var(--text); }
+.header-sub { font-size:13px; color:var(--text-light); margin-top:2px; }
+
+/* Cards */
+.card {
+  background:var(--white);
+  border-radius:var(--radius);
+  padding:16px;
+  margin:0 16px 12px;
+  box-shadow:var(--shadow-sm);
+  transition:box-shadow .2s;
+}
+.card:active { box-shadow:var(--shadow-md); }
+
+/* Meal slots */
+.meal-slot {
+  background:var(--white);
+  border-radius:var(--radius);
+  margin:0 16px 12px;
+  box-shadow:var(--shadow-sm);
+  overflow:hidden;
+}
+.meal-slot-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px;
+  cursor:pointer;
+}
+.meal-slot-info { display:flex; align-items:center; gap:10px; }
+.meal-slot-emoji { font-size:22px; }
+.meal-slot-name { font-weight:600; font-size:14px; }
+.meal-slot-cals { font-size:12px; color:var(--text-light); }
+.meal-slot-add {
+  width:32px; height:32px; border-radius:50%;
+  background:var(--green-pale); border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--green); font-size:18px; font-weight:500;
+  transition:all .2s;
+}
+.meal-slot-add:hover { background:var(--green); color:white; }
+.meal-items { padding:0 16px 12px; }
+.meal-item {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 0; border-top:1px solid var(--cream-dark);
+}
+.meal-item-left { display:flex; align-items:center; gap:8px; flex:1; }
+.meal-item-emoji { font-size:16px; }
+.meal-item-name { font-size:13px; flex:1; }
+.meal-item-qty { font-size:11px; color:var(--text-muted); }
+.meal-item-cals { font-size:12px; font-weight:600; color:var(--terracotta); white-space:nowrap; }
+.meal-item-del {
+  width:24px; height:24px; border-radius:50%; border:none;
+  background:transparent; color:var(--text-muted); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; margin-left:6px;
+}
+
+/* Macro summary bar */
+.macro-bar {
+  display:flex; gap:8px; padding:12px 16px;
+  overflow-x:auto; -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.macro-bar::-webkit-scrollbar { display:none; }
+.macro-pill {
+  flex-shrink:0;
+  background:var(--white);
+  border-radius:12px;
+  padding:10px 14px;
+  box-shadow:var(--shadow-sm);
+  text-align:center;
+  min-width:76px;
+}
+.macro-pill-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; }
+.macro-pill-value { font-size:16px; font-weight:700; margin-top:2px; }
+.macro-pill-target { font-size:10px; color:var(--text-light); }
+.macro-pill.over { border:2px solid var(--coral); }
+.macro-pill.reached { border:2px solid var(--green); }
+
+/* Buttons */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  padding:12px 24px; border-radius:var(--radius-sm); border:none;
+  font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px;
+  cursor:pointer; transition:all .2s;
+}
+.btn-primary { background:var(--green); color:white; }
+.btn-primary:hover { background:var(--green-dark); }
+.btn-secondary { background:var(--green-pale); color:var(--green); }
+.btn-outline { background:transparent; border:1.5px solid var(--cream-dark); color:var(--text); }
+.btn-danger { background:#F5E6E4; color:#C0392B; }
+.btn-sm { padding:8px 16px; font-size:12px; border-radius:var(--radius-xs); }
+.btn-full { width:100%; }
+.btn-icon { width:36px; height:36px; padding:0; border-radius:50%; }
+
+/* Input */
+.input-group { margin-bottom:14px; }
+.input-label { font-size:12px; font-weight:600; color:var(--text-light); margin-bottom:4px; display:block; }
+.input {
+  width:100%; padding:12px 14px; border:1.5px solid var(--cream-dark);
+  border-radius:var(--radius-sm); font-size:14px; font-family:'DM Sans',sans-serif;
+  background:var(--cream); color:var(--text); outline:none; transition:border-color .2s;
+}
+.input:focus { border-color:var(--green); }
+.input-row { display:flex; gap:10px; }
+.input-row > * { flex:1; }
+textarea.input { min-height:80px; resize:vertical; }
+
+/* Modal/Sheet */
+.modal-overlay {
+  position:fixed; top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.4); z-index:2000;
+  display:flex; align-items:flex-end; justify-content:center;
+  animation:fadeIn .2s;
+}
+.modal-sheet {
+  background:var(--white); border-radius:20px 20px 0 0;
+  width:100%; max-width:500px; max-height:92vh;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:12px 20px calc(20px + var(--safe-bottom));
+  animation:slideUp .3s ease-out;
+}
+.modal-center {
+  background:var(--white); border-radius:var(--radius);
+  width:90%; max-width:440px; max-height:85vh;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:24px;
+  animation:scaleIn .2s ease-out;
+  align-self:center;
+}
+.modal-handle {
+  width:36px; height:4px; background:var(--cream-dark);
+  border-radius:2px; margin:0 auto 16px;
+}
+.modal-title { font-size:18px; font-weight:700; margin-bottom:16px; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+@keyframes scaleIn { from{transform:scale(0.9);opacity:0} to{transform:scale(1);opacity:1} }
+
+/* Tags/Chips */
+.chip {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500;
+  cursor:pointer; transition:all .2s; border:1.5px solid var(--cream-dark);
+  background:var(--white); color:var(--text-light);
+}
+.chip.active { background:var(--green); color:white; border-color:var(--green); }
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+
+/* Search */
+.search-bar {
+  margin:12px 16px;
+  position:relative;
+}
+.search-bar input {
+  width:100%; padding:12px 14px 12px 40px;
+  border:1.5px solid var(--cream-dark); border-radius:var(--radius);
+  font-size:14px; font-family:'DM Sans',sans-serif;
+  background:var(--white); color:var(--text); outline:none;
+}
+.search-bar input:focus { border-color:var(--green); }
+.search-bar .search-icon {
+  position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  color:var(--text-muted); font-size:18px;
+}
+
+/* Recipe card */
+.recipe-card {
+  background:var(--white);
+  border-radius:var(--radius);
+  padding:14px 16px;
+  margin:0 16px 10px;
+  box-shadow:var(--shadow-sm);
+  display:flex; align-items:center; gap:12px;
+  cursor:pointer; transition:all .15s;
+}
+.recipe-card:active { transform:scale(0.98); box-shadow:var(--shadow-md); }
+.recipe-emoji { font-size:32px; flex-shrink:0; }
+.recipe-info { flex:1; min-width:0; }
+.recipe-name { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.recipe-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.recipe-macros-mini { display:flex; gap:8px; margin-top:4px; }
+.recipe-macros-mini span { font-size:11px; color:var(--text-light); font-weight:500; }
+
+/* Section title */
+.section-title {
+  font-size:15px; font-weight:700; color:var(--text);
+  padding:16px 20px 8px;
+}
+.section-title-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:16px 20px 8px;
+}
+
+/* Date navigator */
+.date-nav {
+  display:flex; align-items:center; justify-content:center; gap:16px;
+  padding:12px 0;
+}
+.date-nav-btn {
+  width:36px; height:36px; border-radius:50%; border:none;
+  background:var(--green-pale); color:var(--green); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; font-weight:700;
+}
+.date-nav-text { font-weight:600; font-size:14px; min-width:140px; text-align:center; }
+
+/* Tabs */
+.tab-bar { display:flex; gap:0; margin:0 16px; background:var(--cream-dark); border-radius:var(--radius-sm); padding:3px; }
+.tab {
+  flex:1; padding:8px 12px; text-align:center; border:none; background:none;
+  font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600;
+  color:var(--text-muted); cursor:pointer; border-radius:8px; transition:all .2s;
+}
+.tab.active { background:var(--white); color:var(--text); box-shadow:var(--shadow-sm); }
+
+/* Progress ring */
+.progress-ring { position:relative; display:inline-flex; align-items:center; justify-content:center; }
+.progress-ring svg { transform:rotate(-90deg); }
+.progress-ring-text {
+  position:absolute; font-size:11px; font-weight:700;
+}
+
+/* Utility */
+.mt-8 { margin-top:8px; }
+.mt-16 { margin-top:16px; }
+.mb-8 { margin-bottom:8px; }
+.mb-16 { margin-bottom:16px; }
+.px-16 { padding-left:16px; padding-right:16px; }
+.text-center { text-align:center; }
+.text-sm { font-size:12px; }
+.text-muted { color:var(--text-muted); }
+.flex { display:flex; }
+.flex-col { flex-direction:column; }
+.gap-8 { gap:8px; }
+.gap-12 { gap:12px; }
+.items-center { align-items:center; }
+.justify-between { justify-content:space-between; }
+.flex-1 { flex:1; }
+.hidden { display:none !important; }
+.empty-state { text-align:center; padding:32px 20px; color:var(--text-muted); }
+.empty-state-emoji { font-size:40px; margin-bottom:8px; }
+.empty-state-text { font-size:14px; line-height:1.5; }
+.divider { height:1px; background:var(--cream-dark); margin:12px 0; }
+
+/* Scrollable list */
+.list { padding-bottom:20px; }
+.list-header { position:sticky; top:0; background:var(--cream); z-index:10; }
+
+/* Notification toast */
+.toast {
+  position:fixed; top:calc(16px + env(safe-area-inset-top, 0px)); left:50%; transform:translateX(-50%);
+  background:var(--green-dark); color:white; padding:10px 20px;
+  border-radius:var(--radius-sm); font-size:13px; font-weight:500;
+  box-shadow:var(--shadow-lg); z-index:9999;
+  animation:slideDown .3s ease-out;
+}
+@keyframes slideDown { from{transform:translateX(-50%) translateY(-100%);opacity:0} to{transform:translateX(-50%) translateY(0);opacity:1} }
+
+/* Photo button */
+.photo-btn {
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; padding:20px; border:2px dashed var(--cream-dark);
+  border-radius:var(--radius); background:var(--cream);
+  cursor:pointer; transition:all .2s; color:var(--text-muted);
+  font-size:13px; font-weight:500;
+}
+.photo-btn:hover { border-color:var(--green); color:var(--green); }
+
+/* Chart container */
+.chart-container { position:relative; width:100%; height:200px; }
+
+/* Toggle */
+.toggle {
+  position:relative; width:48px; height:28px; border-radius:14px;
+  background:var(--cream-dark); border:none; cursor:pointer; transition:background .2s;
+}
+.toggle.on { background:var(--green); }
+.toggle::after {
+  content:''; position:absolute; top:3px; left:3px;
+  width:22px; height:22px; border-radius:50%;
+  background:white; box-shadow:var(--shadow-sm); transition:transform .2s;
+}
+.toggle.on::after { transform:translateX(20px); }
+
+/* Settings row */
+.setting-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:14px 0; border-bottom:1px solid var(--cream-dark);
+}
+.setting-label { font-size:14px; }
+.setting-desc { font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+/* Food item in add meal */
+.food-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 0; border-bottom:1px solid var(--cream-dark);
+}
+.food-row:last-child { border-bottom:none; }
+.food-emoji { font-size:20px; flex-shrink:0; }
+.food-name { font-size:13px; font-weight:500; flex:1; }
+.food-macro { font-size:10px; color:var(--text-muted); }
+
+/* Ingredient row in recipe */
+.ingredient-row {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 0; border-bottom:1px solid var(--cream-dark);
+}
+.ingredient-row:last-child { border-bottom:none; }
+.ingr-qty { font-weight:600; font-size:13px; min-width:60px; }
+.ingr-name { font-size:13px; flex:1; }
+.ingr-cal { font-size:11px; color:var(--text-muted); white-space:nowrap; }
+
+/* Recipe steps */
+.step { display:flex; gap:12px; padding:10px 0; }
+.step-num {
+  width:24px; height:24px; border-radius:50%;
+  background:var(--green); color:white;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; flex-shrink:0;
+}
+.step-text { font-size:13px; line-height:1.5; flex:1; }
+
+/* Quantity adjuster */
+.qty-adjust {
+  display:flex; align-items:center; gap:10px;
+  background:var(--cream); border-radius:var(--radius-sm); padding:4px;
+}
+.qty-adjust button {
+  width:32px; height:32px; border-radius:8px; border:none;
+  background:var(--white); color:var(--green); cursor:pointer;
+  font-size:18px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  box-shadow:var(--shadow-sm);
+}
+.qty-adjust input {
+  width:50px; text-align:center; border:none; background:transparent;
+  font-size:15px; font-weight:600; font-family:'DM Sans',sans-serif; color:var(--text);
+}
+.qty-adjust input:focus { outline:none; }
+
+/* Loading */
+.loading { display:flex; justify-content:center; padding:20px; }
+.spinner { width:24px; height:24px; border:3px solid var(--cream-dark); border-top-color:var(--green); border-radius:50%; animation:spin .6s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+@media (min-width:600px) {
+  .app { max-width:480px; margin:0 auto; position:relative; }
+  .nav { max-width:480px; left:50%; transform:translateX(-50%); }
+  .modal-sheet { max-width:480px; }
+  .toast { max-width:400px; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ===== DATA =====
+const FOODS_DB = [
+  // Céréales & Féculents
+  {id:'rice_raw',name:'Riz (cru)',emoji:'🍚',cat:'cereal',state:'raw',per100g:{cal:360,prot:7,carb:80,fat:0.6,fib:1.3}},
+  {id:'rice_cooked',name:'Riz (cuit)',emoji:'🍚',cat:'cereal',state:'cooked',per100g:{cal:130,prot:2.7,carb:28,fat:0.3,fib:0.4}},
+  {id:'pasta_raw',name:'Pâtes (crues)',emoji:'🍝',cat:'cereal',state:'raw',per100g:{cal:371,prot:13,carb:75,fat:1.5,fib:3}},
+  {id:'pasta_cooked',name:'Pâtes (cuites)',emoji:'🍝',cat:'cereal',state:'cooked',per100g:{cal:158,prot:5.8,carb:31,fat:0.9,fib:1.8}},
+  {id:'oats',name:'Flocons d\'avoine',emoji:'🥣',cat:'cereal',state:null,per100g:{cal:389,prot:16.9,carb:66,fat:6.9,fib:10.6}},
+  {id:'quinoa_raw',name:'Quinoa (cru)',emoji:'🌾',cat:'cereal',state:'raw',per100g:{cal:368,prot:14,carb:64,fat:6,fib:7}},
+  {id:'quinoa_cooked',name:'Quinoa (cuit)',emoji:'🌾',cat:'cereal',state:'cooked',per100g:{cal:120,prot:4.4,carb:21,fat:1.9,fib:2.8}},
+  {id:'bread_white',name:'Pain blanc',emoji:'🍞',cat:'cereal',state:null,per100g:{cal:265,prot:9,carb:49,fat:3.2,fib:2.7}},
+  {id:'bread_whole',name:'Pain complet',emoji:'🍞',cat:'cereal',state:null,per100g:{cal:247,prot:13,carb:41,fat:3.4,fib:7}},
+  {id:'couscous_raw',name:'Semoule (crue)',emoji:'🥘',cat:'cereal',state:'raw',per100g:{cal:376,prot:13,carb:77,fat:0.6,fib:5}},
+  {id:'couscous_cooked',name:'Semoule (cuite)',emoji:'🥘',cat:'cereal',state:'cooked',per100g:{cal:112,prot:3.8,carb:23,fat:0.2,fib:1.4}},
+  {id:'bulgur_raw',name:'Boulgour (cru)',emoji:'🌾',cat:'cereal',state:'raw',per100g:{cal:342,prot:12,carb:76,fat:1.3,fib:18}},
+  {id:'bulgur_cooked',name:'Boulgour (cuit)',emoji:'🌾',cat:'cereal',state:'cooked',per100g:{cal:83,prot:3,carb:19,fat:0.2,fib:4.5}},
+  {id:'potato_raw',name:'Pomme de terre (crue)',emoji:'🥔',cat:'cereal',state:'raw',per100g:{cal:77,prot:2,carb:17,fat:0.1,fib:2.2}},
+  {id:'potato_cooked',name:'Pomme de terre (cuite)',emoji:'🥔',cat:'cereal',state:'cooked',per100g:{cal:87,prot:1.9,carb:20,fat:0.1,fib:1.8}},
+  {id:'sweet_potato_raw',name:'Patate douce (crue)',emoji:'🍠',cat:'cereal',state:'raw',per100g:{cal:86,prot:1.6,carb:20,fat:0.1,fib:3}},
+  {id:'sweet_potato_cooked',name:'Patate douce (cuite)',emoji:'🍠',cat:'cereal',state:'cooked',per100g:{cal:90,prot:2,carb:21,fat:0.1,fib:3.3}},
+  {id:'corn',name:'Maïs',emoji:'🌽',cat:'cereal',state:null,per100g:{cal:86,prot:3.2,carb:19,fat:1.2,fib:2.7}},
+  {id:'polenta',name:'Polenta (cuite)',emoji:'🥣',cat:'cereal',state:'cooked',per100g:{cal:70,prot:1.6,carb:15,fat:0.3,fib:1}},
+  {id:'tortilla_wheat',name:'Tortilla de blé',emoji:'🫓',cat:'cereal',state:null,per100g:{cal:312,prot:8.3,carb:52,fat:8,fib:3}},
+  {id:'rice_noodles_cooked',name:'Nouilles de riz (cuites)',emoji:'🍜',cat:'cereal',state:'cooked',per100g:{cal:109,prot:0.9,carb:25,fat:0.2,fib:1}},
+  {id:'millet_cooked',name:'Millet (cuit)',emoji:'🌾',cat:'cereal',state:'cooked',per100g:{cal:119,prot:3.5,carb:23,fat:1,fib:1.3}},
+  // Légumineuses
+  {id:'lentils_raw',name:'Lentilles (crues)',emoji:'🫘',cat:'legume',state:'raw',per100g:{cal:353,prot:25,carb:60,fat:1,fib:11}},
+  {id:'lentils_cooked',name:'Lentilles (cuites)',emoji:'🫘',cat:'legume',state:'cooked',per100g:{cal:116,prot:9,carb:20,fat:0.4,fib:7.9}},
+  {id:'chickpeas_raw',name:'Pois chiches (crus)',emoji:'🫘',cat:'legume',state:'raw',per100g:{cal:364,prot:19,carb:61,fat:6,fib:17}},
+  {id:'chickpeas_cooked',name:'Pois chiches (cuits)',emoji:'🫘',cat:'legume',state:'cooked',per100g:{cal:164,prot:8.9,carb:27,fat:2.6,fib:7.6}},
+  {id:'black_beans_cooked',name:'Haricots noirs (cuits)',emoji:'🫘',cat:'legume',state:'cooked',per100g:{cal:132,prot:8.9,carb:24,fat:0.5,fib:8.7}},
+  {id:'red_beans_cooked',name:'Haricots rouges (cuits)',emoji:'🫘',cat:'legume',state:'cooked',per100g:{cal:127,prot:8.7,carb:22,fat:0.5,fib:6.4}},
+  {id:'white_beans_cooked',name:'Haricots blancs (cuits)',emoji:'🫘',cat:'legume',state:'cooked',per100g:{cal:139,prot:9.7,carb:25,fat:0.4,fib:6.3}},
+  {id:'tofu_firm',name:'Tofu ferme',emoji:'🧈',cat:'legume',state:null,per100g:{cal:144,prot:17,carb:3,fat:8.7,fib:2}},
+  {id:'tofu_soft',name:'Tofu soyeux',emoji:'🧈',cat:'legume',state:null,per100g:{cal:55,prot:5,carb:2.3,fat:3,fib:0.2}},
+  {id:'tempeh',name:'Tempeh',emoji:'🧱',cat:'legume',state:null,per100g:{cal:192,prot:20,carb:8,fat:11,fib:0}},
+  {id:'edamame',name:'Edamame',emoji:'🫛',cat:'legume',state:null,per100g:{cal:121,prot:12,carb:9,fat:5,fib:5}},
+  {id:'peas',name:'Petits pois',emoji:'🟢',cat:'legume',state:null,per100g:{cal:81,prot:5.4,carb:14,fat:0.4,fib:5.1}},
+  {id:'split_peas_cooked',name:'Pois cassés (cuits)',emoji:'🫘',cat:'legume',state:'cooked',per100g:{cal:118,prot:8.3,carb:21,fat:0.4,fib:8.3}},
+  {id:'seitan',name:'Seitan',emoji:'🥩',cat:'legume',state:null,per100g:{cal:370,prot:75,carb:14,fat:2,fib:0.6}},
+  // Légumes
+  {id:'broccoli',name:'Brocoli',emoji:'🥦',cat:'vegetable',state:null,per100g:{cal:34,prot:2.8,carb:7,fat:0.4,fib:2.6}},
+  {id:'spinach',name:'Épinards',emoji:'🥬',cat:'vegetable',state:null,per100g:{cal:23,prot:2.9,carb:3.6,fat:0.4,fib:2.2}},
+  {id:'kale',name:'Chou kale',emoji:'🥬',cat:'vegetable',state:null,per100g:{cal:49,prot:4.3,carb:9,fat:0.9,fib:3.6}},
+  {id:'carrot',name:'Carotte',emoji:'🥕',cat:'vegetable',state:null,per100g:{cal:41,prot:0.9,carb:10,fat:0.2,fib:2.8}},
+  {id:'tomato',name:'Tomate',emoji:'🍅',cat:'vegetable',state:null,per100g:{cal:18,prot:0.9,carb:3.9,fat:0.2,fib:1.2}},
+  {id:'zucchini',name:'Courgette',emoji:'🥒',cat:'vegetable',state:null,per100g:{cal:17,prot:1.2,carb:3.1,fat:0.3,fib:1}},
+  {id:'bell_pepper',name:'Poivron',emoji:'🫑',cat:'vegetable',state:null,per100g:{cal:31,prot:1,carb:6,fat:0.3,fib:2.1}},
+  {id:'mushroom',name:'Champignons',emoji:'🍄',cat:'vegetable',state:null,per100g:{cal:22,prot:3.1,carb:3.3,fat:0.3,fib:1}},
+  {id:'onion',name:'Oignon',emoji:'🧅',cat:'vegetable',state:null,per100g:{cal:40,prot:1.1,carb:9.3,fat:0.1,fib:1.7}},
+  {id:'garlic',name:'Ail',emoji:'🧄',cat:'vegetable',state:null,per100g:{cal:149,prot:6.4,carb:33,fat:0.5,fib:2.1}},
+  {id:'cauliflower',name:'Chou-fleur',emoji:'🥦',cat:'vegetable',state:null,per100g:{cal:25,prot:1.9,carb:5,fat:0.3,fib:2}},
+  {id:'eggplant',name:'Aubergine',emoji:'🍆',cat:'vegetable',state:null,per100g:{cal:25,prot:1,carb:6,fat:0.2,fib:3}},
+  {id:'cucumber',name:'Concombre',emoji:'🥒',cat:'vegetable',state:null,per100g:{cal:16,prot:0.7,carb:3.6,fat:0.1,fib:0.5}},
+  {id:'lettuce',name:'Laitue',emoji:'🥬',cat:'vegetable',state:null,per100g:{cal:15,prot:1.4,carb:2.9,fat:0.2,fib:1.3}},
+  {id:'cabbage',name:'Chou',emoji:'🥬',cat:'vegetable',state:null,per100g:{cal:25,prot:1.3,carb:6,fat:0.1,fib:2.5}},
+  {id:'green_beans',name:'Haricots verts',emoji:'🫛',cat:'vegetable',state:null,per100g:{cal:31,prot:1.8,carb:7,fat:0.1,fib:3.4}},
+  {id:'celery',name:'Céleri',emoji:'🥬',cat:'vegetable',state:null,per100g:{cal:16,prot:0.7,carb:3,fat:0.2,fib:1.6}},
+  {id:'leek',name:'Poireau',emoji:'🥬',cat:'vegetable',state:null,per100g:{cal:61,prot:1.5,carb:14,fat:0.3,fib:1.8}},
+  {id:'beetroot',name:'Betterave',emoji:'🟣',cat:'vegetable',state:null,per100g:{cal:43,prot:1.6,carb:10,fat:0.2,fib:2.8}},
+  {id:'artichoke',name:'Artichaut',emoji:'🥬',cat:'vegetable',state:null,per100g:{cal:47,prot:3.3,carb:11,fat:0.2,fib:5.4}},
+  {id:'asparagus',name:'Asperges',emoji:'🌿',cat:'vegetable',state:null,per100g:{cal:20,prot:2.2,carb:3.9,fat:0.1,fib:2.1}},
+  {id:'radish',name:'Radis',emoji:'🔴',cat:'vegetable',state:null,per100g:{cal:16,prot:0.7,carb:3.4,fat:0.1,fib:1.6}},
+  {id:'avocado',name:'Avocat',emoji:'🥑',cat:'vegetable',state:null,per100g:{cal:160,prot:2,carb:9,fat:15,fib:7}},
+  {id:'tomato_sauce',name:'Sauce tomate',emoji:'🍅',cat:'vegetable',state:null,per100g:{cal:29,prot:1.3,carb:5.5,fat:0.3,fib:1.5}},
+  {id:'tomato_canned',name:'Tomates pelées (conserve)',emoji:'🍅',cat:'vegetable',state:null,per100g:{cal:18,prot:0.9,carb:3.5,fat:0.1,fib:1}},
+  // Fruits
+  {id:'banana',name:'Banane',emoji:'🍌',cat:'fruit',state:null,per100g:{cal:89,prot:1.1,carb:23,fat:0.3,fib:2.6}},
+  {id:'apple',name:'Pomme',emoji:'🍎',cat:'fruit',state:null,per100g:{cal:52,prot:0.3,carb:14,fat:0.2,fib:2.4}},
+  {id:'orange',name:'Orange',emoji:'🍊',cat:'fruit',state:null,per100g:{cal:47,prot:0.9,carb:12,fat:0.1,fib:2.4}},
+  {id:'blueberry',name:'Myrtilles',emoji:'🫐',cat:'fruit',state:null,per100g:{cal:57,prot:0.7,carb:14,fat:0.3,fib:2.4}},
+  {id:'strawberry',name:'Fraises',emoji:'🍓',cat:'fruit',state:null,per100g:{cal:32,prot:0.7,carb:7.7,fat:0.3,fib:2}},
+  {id:'raspberry',name:'Framboises',emoji:'🫐',cat:'fruit',state:null,per100g:{cal:52,prot:1.2,carb:12,fat:0.7,fib:6.5}},
+  {id:'mango',name:'Mangue',emoji:'🥭',cat:'fruit',state:null,per100g:{cal:60,prot:0.8,carb:15,fat:0.4,fib:1.6}},
+  {id:'pineapple',name:'Ananas',emoji:'🍍',cat:'fruit',state:null,per100g:{cal:50,prot:0.5,carb:13,fat:0.1,fib:1.4}},
+  {id:'dates',name:'Dattes',emoji:'🫘',cat:'fruit',state:null,per100g:{cal:277,prot:1.8,carb:75,fat:0.2,fib:7}},
+  {id:'lemon',name:'Citron',emoji:'🍋',cat:'fruit',state:null,per100g:{cal:29,prot:1.1,carb:9,fat:0.3,fib:2.8}},
+  {id:'kiwi',name:'Kiwi',emoji:'🥝',cat:'fruit',state:null,per100g:{cal:61,prot:1.1,carb:15,fat:0.5,fib:3}},
+  {id:'watermelon',name:'Pastèque',emoji:'🍉',cat:'fruit',state:null,per100g:{cal:30,prot:0.6,carb:8,fat:0.2,fib:0.4}},
+  {id:'grape',name:'Raisin',emoji:'🍇',cat:'fruit',state:null,per100g:{cal:69,prot:0.7,carb:18,fat:0.2,fib:0.9}},
+  {id:'peach',name:'Pêche',emoji:'🍑',cat:'fruit',state:null,per100g:{cal:39,prot:0.9,carb:10,fat:0.3,fib:1.5}},
+  {id:'pear',name:'Poire',emoji:'🍐',cat:'fruit',state:null,per100g:{cal:57,prot:0.4,carb:15,fat:0.1,fib:3.1}},
+  {id:'dried_apricot',name:'Abricots secs',emoji:'🟠',cat:'fruit',state:null,per100g:{cal:241,prot:3.4,carb:63,fat:0.5,fib:7.3}},
+  {id:'raisins',name:'Raisins secs',emoji:'🟤',cat:'fruit',state:null,per100g:{cal:299,prot:3.1,carb:79,fat:0.5,fib:3.7}},
+  {id:'coconut_shredded',name:'Noix de coco râpée',emoji:'🥥',cat:'fruit',state:null,per100g:{cal:660,prot:6.9,carb:24,fat:64,fib:16}},
+  // Noix & Graines
+  {id:'almonds',name:'Amandes',emoji:'🌰',cat:'nut',state:null,per100g:{cal:579,prot:21,carb:22,fat:50,fib:12}},
+  {id:'walnuts',name:'Noix',emoji:'🌰',cat:'nut',state:null,per100g:{cal:654,prot:15,carb:14,fat:65,fib:7}},
+  {id:'cashews',name:'Noix de cajou',emoji:'🌰',cat:'nut',state:null,per100g:{cal:553,prot:18,carb:30,fat:44,fib:3}},
+  {id:'peanuts',name:'Cacahuètes',emoji:'🥜',cat:'nut',state:null,per100g:{cal:567,prot:26,carb:16,fat:49,fib:9}},
+  {id:'chia_seeds',name:'Graines de chia',emoji:'🫘',cat:'nut',state:null,per100g:{cal:486,prot:17,carb:42,fat:31,fib:34}},
+  {id:'flaxseeds',name:'Graines de lin',emoji:'🫘',cat:'nut',state:null,per100g:{cal:534,prot:18,carb:29,fat:42,fib:27}},
+  {id:'sunflower_seeds',name:'Graines de tournesol',emoji:'🌻',cat:'nut',state:null,per100g:{cal:584,prot:21,carb:20,fat:51,fib:9}},
+  {id:'pumpkin_seeds',name:'Graines de courge',emoji:'🎃',cat:'nut',state:null,per100g:{cal:559,prot:30,carb:11,fat:49,fib:6}},
+  {id:'sesame_seeds',name:'Graines de sésame',emoji:'⚪',cat:'nut',state:null,per100g:{cal:573,prot:18,carb:23,fat:50,fib:12}},
+  {id:'hemp_seeds',name:'Graines de chanvre',emoji:'🌿',cat:'nut',state:null,per100g:{cal:553,prot:32,carb:9,fat:49,fib:4}},
+  {id:'pine_nuts',name:'Pignons de pin',emoji:'🌰',cat:'nut',state:null,per100g:{cal:673,prot:14,carb:13,fat:68,fib:3.7}},
+  {id:'hazelnuts',name:'Noisettes',emoji:'🌰',cat:'nut',state:null,per100g:{cal:628,prot:15,carb:17,fat:61,fib:10}},
+  {id:'pistachios',name:'Pistaches',emoji:'🟢',cat:'nut',state:null,per100g:{cal:560,prot:20,carb:28,fat:45,fib:10}},
+  {id:'brazil_nuts',name:'Noix du Brésil',emoji:'🌰',cat:'nut',state:null,per100g:{cal:656,prot:14,carb:12,fat:66,fib:8}},
+  // Boissons & Laits végétaux
+  {id:'soy_milk',name:'Lait de soja',emoji:'🥛',cat:'drink',state:null,per100g:{cal:54,prot:3.3,carb:6,fat:1.8,fib:0.6}},
+  {id:'oat_milk',name:'Lait d\'avoine',emoji:'🥛',cat:'drink',state:null,per100g:{cal:43,prot:1,carb:7,fat:1.5,fib:0.8}},
+  {id:'almond_milk',name:'Lait d\'amande',emoji:'🥛',cat:'drink',state:null,per100g:{cal:15,prot:0.6,carb:0.3,fat:1.1,fib:0.2}},
+  {id:'coconut_milk_canned',name:'Lait de coco (conserve)',emoji:'🥥',cat:'drink',state:null,per100g:{cal:197,prot:2.3,carb:6,fat:21,fib:2.2}},
+  {id:'coconut_milk_drink',name:'Lait de coco (boisson)',emoji:'🥥',cat:'drink',state:null,per100g:{cal:23,prot:0.2,carb:3,fat:1.1,fib:0}},
+  {id:'orange_juice',name:'Jus d\'orange',emoji:'🍊',cat:'drink',state:null,per100g:{cal:45,prot:0.7,carb:10,fat:0.2,fib:0.2}},
+  // Condiments & Autres
+  {id:'olive_oil',name:'Huile d\'olive',emoji:'🫒',cat:'other',state:null,per100g:{cal:884,prot:0,carb:0,fat:100,fib:0}},
+  {id:'coconut_oil',name:'Huile de coco',emoji:'🥥',cat:'other',state:null,per100g:{cal:862,prot:0,carb:0,fat:100,fib:0}},
+  {id:'peanut_butter',name:'Beurre de cacahuète',emoji:'🥜',cat:'other',state:null,per100g:{cal:588,prot:25,carb:20,fat:50,fib:6}},
+  {id:'almond_butter',name:'Purée d\'amande',emoji:'🌰',cat:'other',state:null,per100g:{cal:614,prot:21,carb:19,fat:56,fib:10}},
+  {id:'tahini',name:'Tahini',emoji:'🫘',cat:'other',state:null,per100g:{cal:595,prot:17,carb:21,fat:54,fib:9}},
+  {id:'nutritional_yeast',name:'Levure nutritionnelle',emoji:'🟡',cat:'other',state:null,per100g:{cal:325,prot:50,carb:36,fat:4,fib:26}},
+  {id:'soy_sauce',name:'Sauce soja',emoji:'🫙',cat:'other',state:null,per100g:{cal:53,prot:8,carb:5,fat:0,fib:0.8}},
+  {id:'maple_syrup',name:'Sirop d\'érable',emoji:'🍁',cat:'other',state:null,per100g:{cal:260,prot:0,carb:67,fat:0,fib:0}},
+  {id:'agave_syrup',name:'Sirop d\'agave',emoji:'🌵',cat:'other',state:null,per100g:{cal:310,prot:0,carb:76,fat:0,fib:0}},
+  {id:'cocoa_powder',name:'Cacao en poudre',emoji:'🍫',cat:'other',state:null,per100g:{cal:228,prot:20,carb:58,fat:14,fib:33}},
+  {id:'dark_chocolate',name:'Chocolat noir (70%)',emoji:'🍫',cat:'other',state:null,per100g:{cal:598,prot:8,carb:46,fat:43,fib:11}},
+  {id:'coconut_cream',name:'Crème de coco',emoji:'🥥',cat:'other',state:null,per100g:{cal:330,prot:3,carb:7,fat:35,fib:2}},
+  {id:'miso',name:'Miso',emoji:'🫙',cat:'other',state:null,per100g:{cal:199,prot:12,carb:26,fat:6,fib:5}},
+  {id:'hummus',name:'Houmous',emoji:'🫘',cat:'other',state:null,per100g:{cal:166,prot:8,carb:14,fat:10,fib:6}},
+  {id:'sugar',name:'Sucre',emoji:'🍬',cat:'other',state:null,per100g:{cal:387,prot:0,carb:100,fat:0,fib:0}},
+  {id:'coconut_sugar',name:'Sucre de coco',emoji:'🥥',cat:'other',state:null,per100g:{cal:375,prot:1,carb:94,fat:0.5,fib:0}},
+  {id:'flour_wheat',name:'Farine de blé',emoji:'🌾',cat:'other',state:null,per100g:{cal:364,prot:10,carb:76,fat:1,fib:2.7}},
+  {id:'flour_chickpea',name:'Farine de pois chiche',emoji:'🫘',cat:'other',state:null,per100g:{cal:387,prot:22,carb:58,fat:7,fib:11}},
+  {id:'cornstarch',name:'Fécule de maïs',emoji:'🌽',cat:'other',state:null,per100g:{cal:381,prot:0.3,carb:91,fat:0.1,fib:0.9}},
+  {id:'soy_yogurt',name:'Yaourt de soja',emoji:'🥛',cat:'other',state:null,per100g:{cal:54,prot:4,carb:4,fat:2.3,fib:0.6}},
+  {id:'vegan_cream_cheese',name:'Fromage frais vegan',emoji:'🧀',cat:'other',state:null,per100g:{cal:200,prot:2,carb:6,fat:18,fib:0}},
+  {id:'nori',name:'Algue nori',emoji:'🟢',cat:'other',state:null,per100g:{cal:35,prot:6,carb:5,fat:0.3,fib:0.3}},
+  {id:'sriracha',name:'Sriracha',emoji:'🌶️',cat:'other',state:null,per100g:{cal:93,prot:2,carb:19,fat:1,fib:2}},
+  {id:'balsamic_vinegar',name:'Vinaigre balsamique',emoji:'🫙',cat:'other',state:null,per100g:{cal:88,prot:0.5,carb:17,fat:0,fib:0}},
+  {id:'mustard',name:'Moutarde',emoji:'🟡',cat:'other',state:null,per100g:{cal:66,prot:4,carb:6,fat:3,fib:3}},
+  {id:'protein_pea',name:'Protéine de pois',emoji:'💪',cat:'other',state:null,per100g:{cal:375,prot:80,carb:5,fat:5,fib:5}},
+  {id:'protein_soy',name:'Protéine de soja',emoji:'💪',cat:'other',state:null,per100g:{cal:338,prot:88,carb:0,fat:4,fib:0}},
+  {id:'textured_soy',name:'Protéines de soja texturées',emoji:'🥩',cat:'legume',state:null,per100g:{cal:327,prot:50,carb:30,fat:1,fib:18}},
+  {id:'jackfruit',name:'Jacquier (conserve)',emoji:'🟡',cat:'vegetable',state:null,per100g:{cal:95,prot:1.7,carb:23,fat:0.6,fib:1.5}},
+];
+
+const DEFAULT_RECIPES = [
+  // Petit-déjeuner
+  {id:'r1',name:'Porridge protéiné banane-beurre de cacahuète',emoji:'🥣',cats:['breakfast'],servings:1,
+    ingredients:[{fid:'oats',qty:60,unit:'g'},{fid:'soy_milk',qty:200,unit:'ml'},{fid:'banana',qty:100,unit:'g'},{fid:'peanut_butter',qty:20,unit:'g'},{fid:'chia_seeds',qty:10,unit:'g'},{fid:'maple_syrup',qty:10,unit:'g'}],
+    steps:['Faire chauffer le lait de soja dans une casserole.','Ajouter les flocons d\'avoine et les graines de chia, cuire 5 min à feu doux en remuant.','Verser dans un bol, ajouter la banane coupée en rondelles, le beurre de cacahuète et le sirop d\'érable.'],usageCount:0},
+  {id:'r2',name:'Smoothie bowl açaï',emoji:'🫐',cats:['breakfast'],servings:1,
+    ingredients:[{fid:'banana',qty:120,unit:'g'},{fid:'blueberry',qty:80,unit:'g'},{fid:'soy_milk',qty:100,unit:'ml'},{fid:'oats',qty:30,unit:'g'},{fid:'coconut_shredded',qty:10,unit:'g'},{fid:'chia_seeds',qty:5,unit:'g'}],
+    steps:['Mixer la banane congelée, les myrtilles et le lait de soja jusqu\'à obtenir un mélange épais.','Verser dans un bol.','Garnir avec les flocons d\'avoine, la noix de coco râpée et les graines de chia.'],usageCount:0},
+  {id:'r3',name:'Toast avocat et tomates',emoji:'🥑',cats:['breakfast','lunch'],servings:1,
+    ingredients:[{fid:'bread_whole',qty:80,unit:'g'},{fid:'avocado',qty:80,unit:'g'},{fid:'tomato',qty:100,unit:'g'},{fid:'lemon',qty:10,unit:'g'},{fid:'sesame_seeds',qty:5,unit:'g'}],
+    steps:['Toaster le pain complet.','Écraser l\'avocat avec le jus de citron, saler et poivrer.','Tartiner sur le pain, ajouter les rondelles de tomate et les graines de sésame.'],usageCount:0},
+  {id:'r4',name:'Pancakes vegan à la banane',emoji:'🥞',cats:['breakfast'],servings:2,
+    ingredients:[{fid:'flour_wheat',qty:150,unit:'g'},{fid:'soy_milk',qty:200,unit:'ml'},{fid:'banana',qty:100,unit:'g'},{fid:'maple_syrup',qty:20,unit:'g'},{fid:'coconut_oil',qty:10,unit:'g'}],
+    steps:['Écraser la banane et la mélanger au lait de soja.','Ajouter la farine et mélanger jusqu\'à obtenir une pâte lisse.','Faire cuire les pancakes dans une poêle huilée à feu moyen, 2-3 min par côté.','Servir avec du sirop d\'érable.'],usageCount:0},
+  {id:'r5',name:'Overnight oats chocolat',emoji:'🍫',cats:['breakfast'],servings:1,
+    ingredients:[{fid:'oats',qty:50,unit:'g'},{fid:'soy_milk',qty:150,unit:'ml'},{fid:'cocoa_powder',qty:10,unit:'g'},{fid:'chia_seeds',qty:10,unit:'g'},{fid:'maple_syrup',qty:15,unit:'g'},{fid:'banana',qty:60,unit:'g'}],
+    steps:['Mélanger les flocons d\'avoine, le lait, le cacao, les graines de chia et le sirop d\'érable.','Couvrir et réfrigérer toute la nuit.','Le matin, garnir de rondelles de banane.'],usageCount:0},
+  {id:'r33',name:'Granola maison',emoji:'🥣',cats:['breakfast','snack_am'],servings:6,
+    ingredients:[{fid:'oats',qty:300,unit:'g'},{fid:'almonds',qty:60,unit:'g'},{fid:'cashews',qty:40,unit:'g'},{fid:'coconut_shredded',qty:30,unit:'g'},{fid:'maple_syrup',qty:80,unit:'g'},{fid:'coconut_oil',qty:30,unit:'g'},{fid:'raisins',qty:50,unit:'g'}],
+    steps:['Préchauffer le four à 160°C.','Mélanger les flocons, les noix concassées et la noix de coco.','Ajouter le sirop d\'érable et l\'huile de coco fondue, bien mélanger.','Étaler sur une plaque et cuire 25-30 min en remuant à mi-cuisson.','Laisser refroidir puis ajouter les raisins secs.'],usageCount:0},
+  // Collations
+  {id:'r6',name:'Energy balls dattes-cacao',emoji:'🍫',cats:['snack_am','snack_pm'],servings:4,
+    ingredients:[{fid:'dates',qty:100,unit:'g'},{fid:'oats',qty:60,unit:'g'},{fid:'cocoa_powder',qty:15,unit:'g'},{fid:'peanut_butter',qty:30,unit:'g'},{fid:'coconut_shredded',qty:20,unit:'g'}],
+    steps:['Mixer les dattes dénoyautées avec les flocons d\'avoine et le cacao.','Ajouter le beurre de cacahuète et mélanger.','Former des boules et rouler dans la noix de coco.','Réfrigérer 30 min avant de déguster.'],usageCount:0},
+  {id:'r7',name:'Houmous maison',emoji:'🫘',cats:['snack_am','snack_pm','lunch'],servings:4,
+    ingredients:[{fid:'chickpeas_cooked',qty:400,unit:'g'},{fid:'tahini',qty:40,unit:'g'},{fid:'lemon',qty:30,unit:'g'},{fid:'garlic',qty:5,unit:'g'},{fid:'olive_oil',qty:20,unit:'g'}],
+    steps:['Mixer les pois chiches avec le tahini, le jus de citron et l\'ail.','Ajouter un peu d\'eau si nécessaire pour obtenir la consistance désirée.','Assaisonner et servir avec un filet d\'huile d\'olive.'],usageCount:0},
+  {id:'r8',name:'Smoothie vert protéiné',emoji:'🥤',cats:['snack_am','breakfast'],servings:1,
+    ingredients:[{fid:'banana',qty:100,unit:'g'},{fid:'spinach',qty:60,unit:'g'},{fid:'soy_milk',qty:200,unit:'ml'},{fid:'peanut_butter',qty:15,unit:'g'},{fid:'oats',qty:20,unit:'g'}],
+    steps:['Mettre tous les ingrédients dans un blender.','Mixer jusqu\'à obtenir un smoothie lisse.','Servir frais.'],usageCount:0},
+  {id:'r34',name:'Edamame grillés aux épices',emoji:'🫛',cats:['snack_am','snack_pm'],servings:2,
+    ingredients:[{fid:'edamame',qty:200,unit:'g'},{fid:'olive_oil',qty:10,unit:'g'},{fid:'soy_sauce',qty:10,unit:'g'}],
+    steps:['Préchauffer le four à 200°C.','Mélanger les edamame avec l\'huile d\'olive, la sauce soja et les épices.','Étaler sur une plaque et cuire 15-20 min.'],usageCount:0},
+  {id:'r35',name:'Crackers de graines',emoji:'🫘',cats:['snack_am','snack_pm'],servings:4,
+    ingredients:[{fid:'sunflower_seeds',qty:60,unit:'g'},{fid:'pumpkin_seeds',qty:40,unit:'g'},{fid:'sesame_seeds',qty:30,unit:'g'},{fid:'flaxseeds',qty:30,unit:'g'},{fid:'chia_seeds',qty:15,unit:'g'},{fid:'soy_sauce',qty:10,unit:'g'}],
+    steps:['Mélanger toutes les graines avec la sauce soja et 100ml d\'eau.','Laisser reposer 15 min (les graines de chia et lin vont absorber l\'eau).','Étaler finement sur une plaque de cuisson.','Cuire à 160°C pendant 30-40 min jusqu\'à ce que ce soit croustillant.','Casser en morceaux une fois refroidi.'],usageCount:0},
+  // Repas midi
+  {id:'r9',name:'Buddha bowl quinoa et légumes rôtis',emoji:'🥗',cats:['lunch','dinner'],servings:2,
+    ingredients:[{fid:'quinoa_raw',qty:100,unit:'g'},{fid:'sweet_potato_raw',qty:150,unit:'g'},{fid:'chickpeas_cooked',qty:150,unit:'g'},{fid:'avocado',qty:80,unit:'g'},{fid:'spinach',qty:60,unit:'g'},{fid:'tahini',qty:20,unit:'g'},{fid:'lemon',qty:15,unit:'g'},{fid:'olive_oil',qty:15,unit:'g'}],
+    steps:['Cuire le quinoa selon les instructions.','Couper la patate douce en cubes, arroser d\'huile d\'olive et rôtir 25 min à 200°C avec les pois chiches.','Préparer la sauce : mélanger le tahini avec le jus de citron et un peu d\'eau.','Assembler les bols : quinoa, légumes rôtis, épinards frais et avocat.','Arroser de sauce tahini.'],usageCount:0},
+  {id:'r10',name:'Curry de lentilles corail',emoji:'🍛',cats:['lunch','dinner'],servings:3,
+    ingredients:[{fid:'lentils_raw',qty:200,unit:'g'},{fid:'coconut_milk_canned',qty:200,unit:'g'},{fid:'tomato_canned',qty:200,unit:'g'},{fid:'onion',qty:100,unit:'g'},{fid:'garlic',qty:10,unit:'g'},{fid:'carrot',qty:100,unit:'g'},{fid:'olive_oil',qty:15,unit:'g'},{fid:'rice_raw',qty:180,unit:'g'}],
+    steps:['Faire revenir l\'oignon et l\'ail dans l\'huile d\'olive.','Ajouter les carottes coupées en dés et les épices (curry, cumin, curcuma).','Ajouter les lentilles, les tomates et le lait de coco.','Cuire 20-25 min jusqu\'à ce que les lentilles soient tendres.','Servir avec du riz.'],usageCount:0},
+  {id:'r11',name:'Wrap aux haricots noirs et guacamole',emoji:'🌯',cats:['lunch'],servings:2,
+    ingredients:[{fid:'tortilla_wheat',qty:120,unit:'g'},{fid:'black_beans_cooked',qty:200,unit:'g'},{fid:'avocado',qty:100,unit:'g'},{fid:'tomato',qty:80,unit:'g'},{fid:'lettuce',qty:40,unit:'g'},{fid:'lemon',qty:10,unit:'g'},{fid:'corn',qty:60,unit:'g'}],
+    steps:['Préparer le guacamole : écraser l\'avocat avec le citron, sel et poivre.','Réchauffer les haricots noirs.','Assembler les wraps : tartiner de guacamole, ajouter haricots, maïs, tomate et laitue.','Rouler et servir.'],usageCount:0},
+  {id:'r12',name:'Pâtes sauce tomate et lentilles',emoji:'🍝',cats:['lunch','dinner'],servings:2,
+    ingredients:[{fid:'pasta_raw',qty:200,unit:'g'},{fid:'lentils_cooked',qty:150,unit:'g'},{fid:'tomato_sauce',qty:200,unit:'g'},{fid:'onion',qty:80,unit:'g'},{fid:'garlic',qty:5,unit:'g'},{fid:'olive_oil',qty:10,unit:'g'},{fid:'nutritional_yeast',qty:10,unit:'g'}],
+    steps:['Cuire les pâtes al dente.','Faire revenir l\'oignon et l\'ail dans l\'huile d\'olive.','Ajouter la sauce tomate et les lentilles cuites, mijoter 10 min.','Servir sur les pâtes avec de la levure nutritionnelle.'],usageCount:0},
+  {id:'r13',name:'Salade méditerranéenne aux pois chiches',emoji:'🥗',cats:['lunch'],servings:2,
+    ingredients:[{fid:'chickpeas_cooked',qty:200,unit:'g'},{fid:'cucumber',qty:100,unit:'g'},{fid:'tomato',qty:150,unit:'g'},{fid:'bell_pepper',qty:80,unit:'g'},{fid:'onion',qty:40,unit:'g'},{fid:'olive_oil',qty:20,unit:'g'},{fid:'lemon',qty:15,unit:'g'}],
+    steps:['Couper les légumes en dés.','Mélanger avec les pois chiches.','Assaisonner avec l\'huile d\'olive, le citron, sel, poivre et herbes de Provence.'],usageCount:0},
+  {id:'r14',name:'Fried rice tofu et légumes',emoji:'🍚',cats:['lunch','dinner'],servings:2,
+    ingredients:[{fid:'rice_cooked',qty:400,unit:'g'},{fid:'tofu_firm',qty:150,unit:'g'},{fid:'carrot',qty:60,unit:'g'},{fid:'peas',qty:60,unit:'g'},{fid:'onion',qty:60,unit:'g'},{fid:'soy_sauce',qty:20,unit:'g'},{fid:'sesame_seeds',qty:5,unit:'g'},{fid:'olive_oil',qty:10,unit:'g'}],
+    steps:['Couper le tofu en cubes et le faire revenir dans l\'huile jusqu\'à doré.','Ajouter l\'oignon et la carotte en dés, faire sauter 3 min.','Ajouter le riz et les petits pois, mélanger.','Assaisonner avec la sauce soja.','Parsemer de graines de sésame.'],usageCount:0},
+  {id:'r15',name:'Soupe miso au tofu',emoji:'🍜',cats:['lunch','dinner'],servings:2,
+    ingredients:[{fid:'tofu_soft',qty:150,unit:'g'},{fid:'miso',qty:30,unit:'g'},{fid:'nori',qty:5,unit:'g'},{fid:'mushroom',qty:80,unit:'g'},{fid:'green_beans',qty:60,unit:'g'},{fid:'onion',qty:40,unit:'g'}],
+    steps:['Faire bouillir 600ml d\'eau, ajouter les champignons émincés et les haricots.','Cuire 5 min.','Retirer du feu et délayer le miso dans le bouillon.','Ajouter le tofu en cubes et les algues nori.','Servir chaud.'],usageCount:0},
+  {id:'r36',name:'Taboulé de boulgour',emoji:'🌾',cats:['lunch'],servings:3,
+    ingredients:[{fid:'bulgur_raw',qty:150,unit:'g'},{fid:'tomato',qty:200,unit:'g'},{fid:'cucumber',qty:100,unit:'g'},{fid:'onion',qty:40,unit:'g'},{fid:'lemon',qty:30,unit:'g'},{fid:'olive_oil',qty:25,unit:'g'}],
+    steps:['Faire cuire le boulgour et le laisser refroidir.','Couper les tomates, concombre et oignon en petits dés.','Mélanger avec le boulgour, le jus de citron, l\'huile d\'olive.','Ajouter de la menthe et du persil frais hachés.','Saler, poivrer et réfrigérer 1h avant de servir.'],usageCount:0},
+  {id:'r37',name:'Chili sin carne',emoji:'🌶️',cats:['lunch','dinner'],servings:4,
+    ingredients:[{fid:'red_beans_cooked',qty:300,unit:'g'},{fid:'black_beans_cooked',qty:200,unit:'g'},{fid:'tomato_canned',qty:400,unit:'g'},{fid:'corn',qty:100,unit:'g'},{fid:'onion',qty:100,unit:'g'},{fid:'bell_pepper',qty:100,unit:'g'},{fid:'garlic',qty:10,unit:'g'},{fid:'olive_oil',qty:15,unit:'g'}],
+    steps:['Faire revenir l\'oignon, l\'ail et le poivron dans l\'huile.','Ajouter les épices (cumin, paprika, chili).','Ajouter les tomates, les haricots et le maïs.','Mijoter 25-30 min.','Servir avec du riz ou des tortillas.'],usageCount:0},
+  {id:'r38',name:'Pad thaï vegan',emoji:'🍜',cats:['lunch','dinner'],servings:2,
+    ingredients:[{fid:'rice_noodles_cooked',qty:300,unit:'g'},{fid:'tofu_firm',qty:150,unit:'g'},{fid:'carrot',qty:60,unit:'g'},{fid:'bean_sprouts',qty:80,unit:'g'},{fid:'peanuts',qty:30,unit:'g'},{fid:'soy_sauce',qty:20,unit:'g'},{fid:'lemon',qty:15,unit:'g'},{fid:'olive_oil',qty:10,unit:'g'}],
+    steps:['Faire revenir le tofu en cubes jusqu\'à doré.','Ajouter la carotte râpée et faire sauter 2 min.','Ajouter les nouilles de riz cuites et la sauce soja.','Mélanger et ajouter les germes de soja.','Servir avec les cacahuètes concassées et un filet de citron.'],usageCount:0},
+  // Goûter
+  {id:'r16',name:'Banana bread vegan',emoji:'🍌',cats:['snack_pm'],servings:8,
+    ingredients:[{fid:'banana',qty:300,unit:'g'},{fid:'flour_wheat',qty:200,unit:'g'},{fid:'sugar',qty:80,unit:'g'},{fid:'coconut_oil',qty:50,unit:'g'},{fid:'walnuts',qty:40,unit:'g'},{fid:'oat_milk',qty:50,unit:'g'}],
+    steps:['Préchauffer le four à 180°C.','Écraser les bananes mûres.','Mélanger avec l\'huile de coco fondue et le sucre.','Incorporer la farine et le lait d\'avoine.','Ajouter les noix concassées.','Verser dans un moule à cake et cuire 45 min.'],usageCount:0},
+  {id:'r17',name:'Mousse au chocolat vegan',emoji:'🍫',cats:['snack_pm'],servings:4,
+    ingredients:[{fid:'dark_chocolate',qty:150,unit:'g'},{fid:'coconut_cream',qty:200,unit:'g'},{fid:'maple_syrup',qty:20,unit:'g'}],
+    steps:['Faire fondre le chocolat au bain-marie.','Monter la crème de coco bien froide en chantilly.','Incorporer le chocolat fondu refroidi délicatement.','Ajouter le sirop d\'érable.','Réfrigérer 2h minimum.'],usageCount:0},
+  {id:'r18',name:'Barres de céréales maison',emoji:'🥜',cats:['snack_pm','snack_am'],servings:8,
+    ingredients:[{fid:'oats',qty:150,unit:'g'},{fid:'dates',qty:80,unit:'g'},{fid:'peanut_butter',qty:50,unit:'g'},{fid:'almonds',qty:40,unit:'g'},{fid:'dark_chocolate',qty:30,unit:'g'},{fid:'maple_syrup',qty:30,unit:'g'}],
+    steps:['Mixer les dattes en pâte.','Mélanger avec les flocons d\'avoine, les amandes concassées, le beurre de cacahuète et le sirop.','Presser le mélange dans un moule.','Faire fondre le chocolat et verser sur le dessus.','Réfrigérer 2h puis couper en barres.'],usageCount:0},
+  {id:'r39',name:'Muffins myrtille-citron',emoji:'🧁',cats:['snack_pm','breakfast'],servings:6,
+    ingredients:[{fid:'flour_wheat',qty:200,unit:'g'},{fid:'soy_milk',qty:150,unit:'ml'},{fid:'blueberry',qty:120,unit:'g'},{fid:'sugar',qty:60,unit:'g'},{fid:'coconut_oil',qty:40,unit:'g'},{fid:'lemon',qty:15,unit:'g'}],
+    steps:['Préchauffer le four à 180°C.','Mélanger la farine, le sucre et le zeste de citron.','Ajouter le lait de soja et l\'huile de coco fondue.','Incorporer les myrtilles délicatement.','Remplir les moules à muffins aux 3/4.','Cuire 20-25 min.'],usageCount:0},
+  // Dîner
+  {id:'r19',name:'Dahl de lentilles corail',emoji:'🍲',cats:['dinner','lunch'],servings:3,
+    ingredients:[{fid:'lentils_raw',qty:200,unit:'g'},{fid:'coconut_milk_canned',qty:200,unit:'g'},{fid:'tomato_canned',qty:200,unit:'g'},{fid:'onion',qty:80,unit:'g'},{fid:'garlic',qty:8,unit:'g'},{fid:'spinach',qty:80,unit:'g'},{fid:'olive_oil',qty:10,unit:'g'}],
+    steps:['Faire revenir l\'oignon et l\'ail dans l\'huile.','Ajouter les épices (curcuma, cumin, garam masala).','Ajouter les lentilles, les tomates et le lait de coco.','Cuire 20 min.','Ajouter les épinards en fin de cuisson.','Servir avec du riz ou du naan.'],usageCount:0},
+  {id:'r20',name:'Stir-fry légumes et tempeh',emoji:'🥘',cats:['dinner','lunch'],servings:2,
+    ingredients:[{fid:'tempeh',qty:200,unit:'g'},{fid:'broccoli',qty:100,unit:'g'},{fid:'bell_pepper',qty:80,unit:'g'},{fid:'carrot',qty:60,unit:'g'},{fid:'mushroom',qty:80,unit:'g'},{fid:'soy_sauce',qty:25,unit:'g'},{fid:'sesame_seeds',qty:5,unit:'g'},{fid:'rice_cooked',qty:300,unit:'g'}],
+    steps:['Couper le tempeh en tranches et le mariner dans la sauce soja.','Faire revenir le tempeh jusqu\'à doré.','Ajouter les légumes coupés et faire sauter 5-7 min.','Servir sur le riz avec les graines de sésame.'],usageCount:0},
+  {id:'r21',name:'Pizza vegan aux légumes',emoji:'🍕',cats:['dinner'],servings:2,
+    ingredients:[{fid:'flour_wheat',qty:250,unit:'g'},{fid:'tomato_sauce',qty:150,unit:'g'},{fid:'mushroom',qty:80,unit:'g'},{fid:'bell_pepper',qty:60,unit:'g'},{fid:'onion',qty:40,unit:'g'},{fid:'olive_oil',qty:20,unit:'g'},{fid:'nutritional_yeast',qty:15,unit:'g'}],
+    steps:['Préparer la pâte : mélanger la farine avec 7g de levure, 150ml d\'eau tiède, sel et huile.','Laisser reposer 1h.','Étaler la pâte et la garnir de sauce tomate.','Ajouter les légumes émincés.','Cuire à 220°C pendant 15-20 min.','Parsemer de levure nutritionnelle en sortie de four.'],usageCount:0},
+  {id:'r22',name:'Tacos au jackfruit effiloché',emoji:'🌮',cats:['dinner'],servings:2,
+    ingredients:[{fid:'jackfruit',qty:250,unit:'g'},{fid:'tortilla_wheat',qty:120,unit:'g'},{fid:'avocado',qty:80,unit:'g'},{fid:'tomato',qty:80,unit:'g'},{fid:'onion',qty:40,unit:'g'},{fid:'lemon',qty:10,unit:'g'},{fid:'lettuce',qty:30,unit:'g'}],
+    steps:['Égoutter et effilocher le jacquier à la fourchette.','Faire revenir avec l\'oignon, du paprika fumé, cumin et un peu de sauce soja.','Cuire 10 min à feu moyen.','Préparer le guacamole.','Assembler les tacos.'],usageCount:0},
+  {id:'r23',name:'Risotto aux champignons',emoji:'🍄',cats:['dinner'],servings:2,
+    ingredients:[{fid:'rice_raw',qty:180,unit:'g'},{fid:'mushroom',qty:200,unit:'g'},{fid:'onion',qty:80,unit:'g'},{fid:'garlic',qty:5,unit:'g'},{fid:'olive_oil',qty:20,unit:'g'},{fid:'nutritional_yeast',qty:15,unit:'g'},{fid:'soy_milk',qty:50,unit:'ml'}],
+    steps:['Faire revenir l\'oignon et l\'ail dans l\'huile d\'olive.','Ajouter le riz et le nacrer 2 min.','Ajouter les champignons émincés.','Ajouter le bouillon de légumes louche par louche en remuant.','En fin de cuisson, ajouter la levure nutritionnelle et un peu de lait de soja.'],usageCount:0},
+  {id:'r24',name:'Burger vegan aux haricots noirs',emoji:'🍔',cats:['dinner'],servings:2,
+    ingredients:[{fid:'black_beans_cooked',qty:250,unit:'g'},{fid:'oats',qty:40,unit:'g'},{fid:'onion',qty:40,unit:'g'},{fid:'bread_whole',qty:120,unit:'g'},{fid:'avocado',qty:60,unit:'g'},{fid:'tomato',qty:60,unit:'g'},{fid:'lettuce',qty:20,unit:'g'}],
+    steps:['Écraser grossièrement les haricots noirs.','Mélanger avec les flocons d\'avoine, l\'oignon émincé et les épices.','Former des steaks et cuire à la poêle 4 min par côté.','Assembler les burgers.'],usageCount:0},
+  {id:'r25',name:'Nouilles soba aux légumes',emoji:'🍜',cats:['dinner','lunch'],servings:2,
+    ingredients:[{fid:'pasta_raw',qty:180,unit:'g'},{fid:'edamame',qty:100,unit:'g'},{fid:'carrot',qty:60,unit:'g'},{fid:'cucumber',qty:60,unit:'g'},{fid:'sesame_seeds',qty:10,unit:'g'},{fid:'soy_sauce',qty:20,unit:'g'},{fid:'lemon',qty:10,unit:'g'}],
+    steps:['Cuire les nouilles selon les instructions.','Préparer la sauce : soja, citron, huile de sésame.','Couper les légumes en julienne.','Mélanger les nouilles froides avec les légumes et la sauce.','Garnir de graines de sésame et d\'edamame.'],usageCount:0},
+  {id:'r40',name:'Gratin de légumes',emoji:'🥘',cats:['dinner'],servings:3,
+    ingredients:[{fid:'potato_raw',qty:300,unit:'g'},{fid:'zucchini',qty:200,unit:'g'},{fid:'tomato',qty:150,unit:'g'},{fid:'onion',qty:60,unit:'g'},{fid:'soy_milk',qty:200,unit:'ml'},{fid:'nutritional_yeast',qty:20,unit:'g'},{fid:'olive_oil',qty:15,unit:'g'}],
+    steps:['Couper les pommes de terre en fines tranches, les courgettes et les tomates en rondelles.','Alterner les couches de légumes dans un plat.','Mélanger le lait de soja avec la levure nutritionnelle, sel et muscade.','Verser la sauce sur les légumes.','Cuire à 180°C pendant 40-45 min.'],usageCount:0},
+  {id:'r41',name:'Falafels et sauce tahini',emoji:'🧆',cats:['lunch','dinner'],servings:3,
+    ingredients:[{fid:'chickpeas_cooked',qty:400,unit:'g'},{fid:'onion',qty:60,unit:'g'},{fid:'garlic',qty:8,unit:'g'},{fid:'flour_chickpea',qty:30,unit:'g'},{fid:'tahini',qty:30,unit:'g'},{fid:'lemon',qty:15,unit:'g'},{fid:'olive_oil',qty:20,unit:'g'}],
+    steps:['Mixer les pois chiches avec l\'oignon, l\'ail et les épices (cumin, coriandre, persil).','Ajouter la farine de pois chiche pour lier.','Former des boulettes et les aplatir légèrement.','Cuire au four à 200°C pendant 25 min en les retournant à mi-cuisson.','Préparer la sauce : tahini, citron, eau et sel.'],usageCount:0},
+  {id:'r42',name:'Bolognaise de protéines de soja',emoji:'🍝',cats:['lunch','dinner'],servings:3,
+    ingredients:[{fid:'pasta_raw',qty:250,unit:'g'},{fid:'textured_soy',qty:80,unit:'g'},{fid:'tomato_sauce',qty:300,unit:'g'},{fid:'onion',qty:80,unit:'g'},{fid:'garlic',qty:8,unit:'g'},{fid:'carrot',qty:60,unit:'g'},{fid:'olive_oil',qty:15,unit:'g'},{fid:'nutritional_yeast',qty:10,unit:'g'}],
+    steps:['Réhydrater les protéines de soja dans de l\'eau chaude 10 min.','Faire revenir l\'oignon, l\'ail et la carotte en dés.','Égoutter les protéines de soja et les ajouter.','Ajouter la sauce tomate et mijoter 20 min.','Cuire les pâtes et servir avec la bolognaise et la levure nutritionnelle.'],usageCount:0},
+];
+
+// Add bean sprouts to DB if referenced
+if (!FOODS_DB.find(f=>f.id==='bean_sprouts')) {
+  FOODS_DB.push({id:'bean_sprouts',name:'Germes de soja',emoji:'🌱',cat:'vegetable',state:null,per100g:{cal:31,prot:3.2,carb:5.9,fat:0.2,fib:1.8}});
+}
+
+const MEAL_SLOTS = [
+  {id:'breakfast',name:'Petit-déjeuner',emoji:'🌅',time:'7h-9h'},
+  {id:'snack_am',name:'Collation matin',emoji:'🍎',time:'10h-11h'},
+  {id:'lunch',name:'Déjeuner',emoji:'☀️',time:'12h-14h'},
+  {id:'snack_pm',name:'Goûter',emoji:'🍪',time:'16h-17h'},
+  {id:'dinner',name:'Dîner',emoji:'🌙',time:'19h-21h'},
+];
+
+const FOOD_CATS = [
+  {id:'cereal',name:'Céréales & Féculents',emoji:'🌾'},
+  {id:'legume',name:'Légumineuses & Protéines',emoji:'🫘'},
+  {id:'vegetable',name:'Légumes',emoji:'🥦'},
+  {id:'fruit',name:'Fruits',emoji:'🍎'},
+  {id:'nut',name:'Noix & Graines',emoji:'🌰'},
+  {id:'drink',name:'Boissons',emoji:'🥛'},
+  {id:'other',name:'Autres',emoji:'🫙'},
+];
+
+// ===== UTILITY =====
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function formatDate(d) {
+  const dt = new Date(d+'T12:00:00');
+  const opts = {weekday:'long',day:'numeric',month:'long'};
+  return dt.toLocaleDateString('fr-FR',opts);
+}
+function calcMacros(items, foodsMap) {
+  const m = {cal:0,prot:0,carb:0,fat:0,fib:0};
+  (items||[]).forEach(it => {
+    const f = foodsMap[it.fid];
+    if (!f) return;
+    const ratio = it.qty / 100;
+    m.cal += f.per100g.cal * ratio;
+    m.prot += f.per100g.prot * ratio;
+    m.carb += f.per100g.carb * ratio;
+    m.fat += f.per100g.fat * ratio;
+    m.fib += f.per100g.fib * ratio;
+  });
+  return {cal:Math.round(m.cal),prot:Math.round(m.prot*10)/10,carb:Math.round(m.carb*10)/10,fat:Math.round(m.fat*10)/10,fib:Math.round(m.fib*10)/10};
+}
+function fuzzyMatch(a, b) {
+  a = a.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  b = b.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if (a.includes(b) || b.includes(a)) return true;
+  const words_a = a.split(/\s+/);
+  const words_b = b.split(/\s+/);
+  let matches = 0;
+  words_a.forEach(wa => { if (words_b.some(wb => wa.includes(wb) || wb.includes(wa))) matches++; });
+  return matches >= Math.min(words_a.length, words_b.length) * 0.5;
+}
+function scaleIngredients(ingredients, originalServings, newServings) {
+  const ratio = newServings / originalServings;
+  return ingredients.map(i => ({...i, qty: Math.round(i.qty * ratio * 10) / 10}));
+}
+
+// ===== VUE APP =====
+const {createApp, ref, computed, watch, reactive, onMounted, onUnmounted, nextTick} = Vue;
+
+const app = createApp({
+  setup() {
+    // State
+    const currentTab = ref('dashboard');
+    const currentDate = ref(todayStr());
+    const toast = ref('');
+    let toastTimer = null;
+
+    // Data
+    const foods = ref([...FOODS_DB]);
+    const recipes = ref([...DEFAULT_RECIPES]);
+    const meals = ref({});
+    const goals = ref({cal:{target:2200,on:true},prot:{target:80,on:true},carb:{target:300,on:false},fat:{target:70,on:false},fib:{target:30,on:false}});
+    const apiKey = ref('');
+    const darkMode = ref(false);
+    const lastMealChoices = ref({});
+
+    // Modals
+    const showAddMeal = ref(false);
+    const addMealSlot = ref('');
+    const showRecipeDetail = ref(false);
+    const activeRecipe = ref(null);
+    const showAddRecipe = ref(false);
+    const showFoodDB = ref(false);
+    const showSettings = ref(false);
+    const showAddFood = ref(false);
+    const showMacroDetail = ref(false);
+    const showExportRecipe = ref(false);
+    const showImportRecipe = ref(false);
+    const showPhotoModal = ref(false);
+    const showConfirmDuplicate = ref(false);
+    const duplicateInfo = ref(null);
+
+    // Search
+    const recipeSearch = ref('');
+    const recipeCatFilter = ref('all');
+    const foodSearch = ref('');
+    const addMealSearch = ref('');
+    const addMealMode = ref('choose'); // choose, food, recipe, photo, previous
+
+    // Edit states
+    const editRecipe = ref(null);
+    const editFood = ref(null);
+    const recipeServingsOverride = ref(null);
+    const addMealItems = ref([]);
+    const addMealFromRecipe = ref(null);
+
+    // Computed
+    const foodsMap = computed(() => {
+      const m = {};
+      foods.value.forEach(f => m[f.id] = f);
+      return m;
+    });
+
+    const dayMeals = computed(() => {
+      return meals.value[currentDate.value] || {};
+    });
+
+    const dayMacros = computed(() => {
+      const m = {cal:0,prot:0,carb:0,fat:0,fib:0};
+      const dm = dayMeals.value;
+      MEAL_SLOTS.forEach(slot => {
+        (dm[slot.id]||[]).forEach(item => {
+          const f = foodsMap.value[item.fid];
+          if (!f) return;
+          const ratio = item.qty / 100;
+          m.cal += f.per100g.cal * ratio;
+          m.prot += f.per100g.prot * ratio;
+          m.carb += f.per100g.carb * ratio;
+          m.fat += f.per100g.fat * ratio;
+          m.fib += f.per100g.fib * ratio;
+        });
+      });
+      return {cal:Math.round(m.cal),prot:Math.round(m.prot*10)/10,carb:Math.round(m.carb*10)/10,fat:Math.round(m.fat*10)/10,fib:Math.round(m.fib*10)/10};
+    });
+
+    const filteredRecipes = computed(() => {
+      let list = [...recipes.value];
+      if (recipeCatFilter.value !== 'all') {
+        list = list.filter(r => r.cats.includes(recipeCatFilter.value));
+      }
+      if (recipeSearch.value.trim()) {
+        const q = recipeSearch.value.toLowerCase();
+        list = list.filter(r => {
+          if (r.name.toLowerCase().includes(q)) return true;
+          return r.ingredients.some(i => {
+            const f = foodsMap.value[i.fid];
+            return f && f.name.toLowerCase().includes(q);
+          });
+        });
+      }
+      list.sort((a,b) => (b.usageCount||0) - (a.usageCount||0));
+      return list;
+    });
+
+    const filteredFoods = computed(() => {
+      let list = [...foods.value];
+      if (foodSearch.value.trim()) {
+        const q = foodSearch.value.toLowerCase();
+        list = list.filter(f => f.name.toLowerCase().includes(q));
+      }
+      return list;
+    });
+
+    // Persistence
+    function saveData() {
+      try {
+        const data = {foods:foods.value,recipes:recipes.value,meals:meals.value,goals:goals.value,apiKey:apiKey.value,darkMode:darkMode.value,lastMealChoices:lastMealChoices.value};
+        localStorage.setItem('vegtrack_data', JSON.stringify(data));
+      } catch(e) { console.warn('Save error:', e); }
+    }
+
+    function loadData() {
+      try {
+        const raw = localStorage.getItem('vegtrack_data');
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (data.foods) foods.value = data.foods;
+        if (data.recipes) recipes.value = data.recipes;
+        if (data.meals) meals.value = data.meals;
+        if (data.goals) goals.value = {...goals.value, ...data.goals};
+        if (data.apiKey) apiKey.value = data.apiKey;
+        if (data.darkMode) darkMode.value = data.darkMode;
+        if (data.lastMealChoices) lastMealChoices.value = data.lastMealChoices;
+      } catch(e) { console.warn('Load error:', e); }
+    }
+
+    watch([foods, recipes, meals, goals, apiKey, darkMode, lastMealChoices], () => saveData(), {deep:true});
+    watch(darkMode, (v) => document.documentElement.classList.toggle('dark', v));
+
+    // Toast
+    function showToast(msg) {
+      toast.value = msg;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.value = '', 2500);
+    }
+
+    // Navigation
+    function prevDay() {
+      const d = new Date(currentDate.value + 'T12:00:00');
+      d.setDate(d.getDate() - 1);
+      currentDate.value = d.toISOString().split('T')[0];
+    }
+    function nextDay() {
+      const d = new Date(currentDate.value + 'T12:00:00');
+      d.setDate(d.getDate() + 1);
+      currentDate.value = d.toISOString().split('T')[0];
+    }
+    function goToday() { currentDate.value = todayStr(); }
+    function isToday() { return currentDate.value === todayStr(); }
+
+    // Add meal
+    function openAddMeal(slotId) {
+      addMealSlot.value = slotId;
+      addMealMode.value = 'choose';
+      addMealSearch.value = '';
+      addMealItems.value = [];
+      addMealFromRecipe.value = null;
+      showAddMeal.value = true;
+    }
+
+    function addFoodToMeal(food) {
+      const existing = addMealItems.value.find(i => i.fid === food.id);
+      if (existing) {
+        existing.qty += 100;
+      } else {
+        addMealItems.value.push({fid:food.id, qty:100, unit:'g'});
+      }
+    }
+
+    function addRecipeToMeal(recipe) {
+      addMealFromRecipe.value = recipe;
+      const servings = recipeServingsOverride.value || recipe.savedServings || recipe.servings;
+      // Check if we had saved quantities for this recipe+slot
+      const key = recipe.id + '_' + addMealSlot.value;
+      const saved = lastMealChoices.value[key];
+      if (saved && saved.items) {
+        addMealItems.value = JSON.parse(JSON.stringify(saved.items));
+      } else {
+        const scaled = scaleIngredients(recipe.ingredients, recipe.servings, 1);
+        addMealItems.value = scaled.map(i => ({fid:i.fid, qty:i.qty, unit:i.unit}));
+      }
+      addMealMode.value = 'confirm_recipe';
+    }
+
+    function confirmAddMeal() {
+      if (addMealItems.value.length === 0) return;
+      if (!meals.value[currentDate.value]) meals.value[currentDate.value] = {};
+      if (!meals.value[currentDate.value][addMealSlot.value]) meals.value[currentDate.value][addMealSlot.value] = [];
+      addMealItems.value.forEach(item => {
+        meals.value[currentDate.value][addMealSlot.value].push({...item});
+      });
+      // Save last choices for this recipe
+      if (addMealFromRecipe.value) {
+        const key = addMealFromRecipe.value.id + '_' + addMealSlot.value;
+        lastMealChoices.value[key] = {items:JSON.parse(JSON.stringify(addMealItems.value))};
+        // Increment usage count
+        const r = recipes.value.find(x => x.id === addMealFromRecipe.value.id);
+        if (r) r.usageCount = (r.usageCount || 0) + 1;
+      }
+      showAddMeal.value = false;
+      showToast('Repas ajouté ✓');
+    }
+
+    function removeMealItem(slotId, index) {
+      if (meals.value[currentDate.value] && meals.value[currentDate.value][slotId]) {
+        meals.value[currentDate.value][slotId].splice(index, 1);
+      }
+    }
+
+    function saveAsRecipe() {
+      if (addMealItems.value.length === 0) return;
+      editRecipe.value = {
+        id: uid(),
+        name: '',
+        emoji: '🍽️',
+        cats: [addMealSlot.value],
+        servings: 1,
+        ingredients: JSON.parse(JSON.stringify(addMealItems.value)),
+        steps: [],
+        usageCount: 0,
+        isNew: true
+      };
+      showAddRecipe.value = true;
+    }
+
+    // Previous meals
+    function getPreviousMeals(slotId) {
+      const result = [];
+      const dates = Object.keys(meals.value).sort().reverse();
+      for (const d of dates) {
+        if (d === currentDate.value) continue;
+        const items = meals.value[d]?.[slotId];
+        if (items && items.length > 0) {
+          result.push({date:d, items: JSON.parse(JSON.stringify(items))});
+          if (result.length >= 5) break;
+        }
+      }
+      return result;
+    }
+
+    function usePreviousMeal(prevMeal) {
+      addMealItems.value = JSON.parse(JSON.stringify(prevMeal.items));
+      addMealMode.value = 'confirm_recipe';
+    }
+
+    // Recipes
+    function openRecipe(recipe) {
+      activeRecipe.value = JSON.parse(JSON.stringify(recipe));
+      recipeServingsOverride.value = recipe.savedServings || recipe.servings;
+      showRecipeDetail.value = true;
+    }
+
+    function saveRecipeServings() {
+      const r = recipes.value.find(x => x.id === activeRecipe.value.id);
+      if (r) {
+        r.savedServings = recipeServingsOverride.value;
+        showToast('Portions sauvegardées');
+      }
+    }
+
+    function openNewRecipe() {
+      editRecipe.value = {id:uid(),name:'',emoji:'🍽️',cats:[],servings:2,ingredients:[],steps:[],usageCount:0,isNew:true};
+      showAddRecipe.value = true;
+    }
+
+    function saveRecipe(recipe) {
+      if (!recipe.name.trim()) { showToast('Nom requis'); return; }
+      // Check for duplicates
+      const existing = recipes.value.filter(r => r.id !== recipe.id);
+      const dupes = existing.filter(r => {
+        if (fuzzyMatch(r.name, recipe.name)) return true;
+        if (recipe.ingredients.length > 0) {
+          const overlap = recipe.ingredients.filter(ni => r.ingredients.some(ri => ri.fid === ni.fid));
+          return overlap.length >= Math.min(recipe.ingredients.length, r.ingredients.length) * 0.7;
+        }
+        return false;
+      });
+      if (dupes.length > 0 && recipe.isNew) {
+        duplicateInfo.value = {recipe, dupes};
+        showConfirmDuplicate.value = true;
+        return;
+      }
+      finalizeSaveRecipe(recipe);
+    }
+
+    function finalizeSaveRecipe(recipe) {
+      delete recipe.isNew;
+      const idx = recipes.value.findIndex(r => r.id === recipe.id);
+      if (idx >= 0) {
+        recipes.value[idx] = recipe;
+      } else {
+        recipes.value.push(recipe);
+      }
+      showAddRecipe.value = false;
+      showConfirmDuplicate.value = false;
+      showToast('Recette sauvegardée ✓');
+    }
+
+    function deleteRecipe(id) {
+      recipes.value = recipes.value.filter(r => r.id !== id);
+      showRecipeDetail.value = false;
+      showToast('Recette supprimée');
+    }
+
+    // Recipe export
+    const exportOptions = ref({emojis:true,titles:true,quantities:true,steps:true});
+
+    function exportRecipeText(recipe, options) {
+      const fm = foodsMap.value;
+      let text = '';
+      if (options.titles) text += (options.emojis ? recipe.emoji + ' ' : '') + recipe.name + '\n\n';
+      if (options.titles) text += options.emojis ? '🛒 Ingrédients\n' : 'Ingrédients\n';
+      const servings = recipeServingsOverride.value || recipe.servings;
+      const scaled = scaleIngredients(recipe.ingredients, recipe.servings, servings);
+      scaled.forEach(i => {
+        const f = fm[i.fid];
+        if (!f) return;
+        const emo = options.emojis ? f.emoji + ' ' : '- ';
+        const qty = options.quantities ? `${i.qty}${i.unit} ` : '';
+        text += emo + qty + f.name + '\n';
+      });
+      if (options.steps && recipe.steps.length > 0) {
+        text += '\n' + (options.titles ? (options.emojis ? '👩‍🍳 Préparation\n' : 'Préparation\n') : '');
+        recipe.steps.forEach((s, i) => {
+          text += `${i+1}. ${s}\n`;
+        });
+      }
+      return text;
+    }
+
+    function exportIngredientsText(recipe, withQty, withEmoji) {
+      const fm = foodsMap.value;
+      const servings = recipeServingsOverride.value || recipe.servings;
+      const scaled = scaleIngredients(recipe.ingredients, recipe.servings, servings);
+      return scaled.map(i => {
+        const f = fm[i.fid];
+        if (!f) return '';
+        const emo = withEmoji ? f.emoji + ' ' : '';
+        const qty = withQty ? `${i.qty}${i.unit} ` : '';
+        return emo + qty + f.name;
+      }).filter(Boolean).join('\n');
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => showToast('Copié ! ✓'));
+    }
+
+    // Food management
+    function openNewFood() {
+      editFood.value = {id:uid(),name:'',emoji:'🍽️',cat:'other',state:null,per100g:{cal:0,prot:0,carb:0,fat:0,fib:0},isNew:true};
+      showAddFood.value = true;
+    }
+
+    function saveFood(food) {
+      if (!food.name.trim()) { showToast('Nom requis'); return; }
+      // Check for close match
+      if (food.isNew) {
+        const match = foods.value.find(f => fuzzyMatch(f.name, food.name) && f.id !== food.id);
+        if (match) {
+          if (!confirm(`Un aliment similaire existe : "${match.name}". Voulez-vous quand même ajouter "${food.name}" ?`)) return;
+        }
+      }
+      delete food.isNew;
+      const idx = foods.value.findIndex(f => f.id === food.id);
+      if (idx >= 0) foods.value[idx] = food;
+      else foods.value.push(food);
+      showAddFood.value = false;
+      showToast('Aliment sauvegardé ✓');
+    }
+
+    // Import/Export all data
+    function exportAll() {
+      const data = {foods:foods.value,recipes:recipes.value,meals:meals.value,goals:goals.value};
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'vegtrack_export.json'; a.click();
+      URL.revokeObjectURL(url);
+      showToast('Export terminé ✓');
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.foods) foods.value = data.foods;
+          if (data.recipes) recipes.value = data.recipes;
+          if (data.meals) meals.value = data.meals;
+          if (data.goals) goals.value = {...goals.value, ...data.goals};
+          showToast('Import réussi ✓');
+        } catch(e) { showToast('Erreur d\'import'); }
+      };
+      reader.readAsText(file);
+    }
+
+    // Import recipe from URL/text
+    const importRecipeUrl = ref('');
+    const importRecipeText = ref('');
+    const importLoading = ref(false);
+
+    async function importRecipeFromUrl() {
+      if (!apiKey.value) { showToast('Clé API requise (Paramètres)'); return; }
+      if (!importRecipeUrl.value.trim()) return;
+      importLoading.value = true;
+      try {
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','x-api-key':apiKey.value,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+          body:JSON.stringify({
+            model:'claude-sonnet-4-20250514',max_tokens:2000,
+            messages:[{role:'user',content:`Extrais la recette de cette URL ou texte: ${importRecipeUrl.value}\n\nRéponds UNIQUEMENT en JSON valide sans backticks:\n{"name":"nom","emoji":"emoji","servings":nombre,"ingredients":[{"name":"nom aliment","qty":nombre,"unit":"g ou ml"}],"steps":["étape 1","étape 2"]}`}]
+          })
+        });
+        const data = await resp.json();
+        const text = data.content?.[0]?.text || '';
+        const parsed = JSON.parse(text);
+        // Map ingredients to existing foods
+        const ingr = parsed.ingredients.map(i => {
+          const match = foods.value.find(f => fuzzyMatch(f.name, i.name));
+          return {fid: match ? match.id : null, name: i.name, qty: i.qty, unit: i.unit, matched: !!match};
+        });
+        editRecipe.value = {id:uid(),name:parsed.name||'',emoji:parsed.emoji||'🍽️',cats:[],servings:parsed.servings||2,ingredients:ingr,steps:parsed.steps||[],usageCount:0,isNew:true,needsMapping:true};
+        showImportRecipe.value = false;
+        showAddRecipe.value = true;
+      } catch(e) {
+        showToast('Erreur: ' + e.message);
+      }
+      importLoading.value = false;
+    }
+
+    async function importRecipeFromText() {
+      if (!apiKey.value) { showToast('Clé API requise (Paramètres)'); return; }
+      if (!importRecipeText.value.trim()) return;
+      importLoading.value = true;
+      try {
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','x-api-key':apiKey.value,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+          body:JSON.stringify({
+            model:'claude-sonnet-4-20250514',max_tokens:2000,
+            messages:[{role:'user',content:`Extrais la recette de ce texte:\n${importRecipeText.value}\n\nRéponds UNIQUEMENT en JSON valide sans backticks:\n{"name":"nom","emoji":"emoji","servings":nombre,"ingredients":[{"name":"nom aliment","qty":nombre,"unit":"g ou ml"}],"steps":["étape 1","étape 2"]}`}]
+          })
+        });
+        const data = await resp.json();
+        const text = data.content?.[0]?.text || '';
+        const parsed = JSON.parse(text);
+        const ingr = parsed.ingredients.map(i => {
+          const match = foods.value.find(f => fuzzyMatch(f.name, i.name));
+          return {fid: match ? match.id : null, name: i.name, qty: i.qty, unit: i.unit, matched: !!match};
+        });
+        editRecipe.value = {id:uid(),name:parsed.name||'',emoji:parsed.emoji||'🍽️',cats:[],servings:parsed.servings||2,ingredients:ingr,steps:parsed.steps||[],usageCount:0,isNew:true,needsMapping:true};
+        showImportRecipe.value = false;
+        showAddRecipe.value = true;
+      } catch(e) {
+        showToast('Erreur: ' + e.message);
+      }
+      importLoading.value = false;
+    }
+
+    // Photo recognition
+    const photoFile = ref(null);
+    const photoLoading = ref(false);
+    const photoResults = ref([]);
+
+    async function processPhoto(event) {
+      const file = event.target.files[0];
+      if (!file || !apiKey.value) { showToast('Clé API requise (Paramètres)'); return; }
+      photoLoading.value = true;
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','x-api-key':apiKey.value,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+          body:JSON.stringify({
+            model:'claude-sonnet-4-20250514',max_tokens:1500,
+            messages:[{role:'user',content:[
+              {type:'image',source:{type:'base64',media_type:file.type,data:base64}},
+              {type:'text',text:'Identifie les aliments et estime les quantités en grammes. Réponds UNIQUEMENT en JSON valide sans backticks: [{"name":"nom","qty":nombre,"unit":"g"}]'}
+            ]}]
+          })
+        });
+        const data = await resp.json();
+        const text = data.content?.[0]?.text || '[]';
+        const items = JSON.parse(text);
+        photoResults.value = items.map(i => {
+          const match = foods.value.find(f => fuzzyMatch(f.name, i.name));
+          return {...i, fid: match?.id || null, matchedName: match?.name || null};
+        });
+        showPhotoModal.value = true;
+      } catch(e) {
+        showToast('Erreur: ' + e.message);
+      }
+      photoLoading.value = false;
+    }
+
+    function confirmPhotoResults() {
+      photoResults.value.forEach(r => {
+        if (r.fid) {
+          addMealItems.value.push({fid:r.fid, qty:r.qty, unit:r.unit});
+        }
+      });
+      showPhotoModal.value = false;
+      addMealMode.value = 'confirm_recipe';
+    }
+
+    // Search food for nutrition info
+    const searchFoodLoading = ref(false);
+    async function searchFoodNutrition(foodName) {
+      if (!apiKey.value) { showToast('Clé API requise'); return null; }
+      searchFoodLoading.value = true;
+      try {
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','x-api-key':apiKey.value,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+          body:JSON.stringify({
+            model:'claude-sonnet-4-20250514',max_tokens:500,
+            tools:[{type:'web_search_20250305',name:'web_search'}],
+            messages:[{role:'user',content:`Cherche les valeurs nutritionnelles pour 100g de "${foodName}" (vegan). Réponds UNIQUEMENT en JSON valide sans backticks: {"cal":nombre,"prot":nombre,"carb":nombre,"fat":nombre,"fib":nombre}`}]
+          })
+        });
+        const data = await resp.json();
+        const textBlock = data.content?.find(b => b.type === 'text');
+        if (textBlock) {
+          const parsed = JSON.parse(textBlock.text);
+          searchFoodLoading.value = false;
+          return parsed;
+        }
+      } catch(e) { showToast('Erreur recherche'); }
+      searchFoodLoading.value = false;
+      return null;
+    }
+
+    // Macro chart
+    const macroChartDays = ref(7);
+    let chartInstance = null;
+
+    function renderChart() {
+      nextTick(() => {
+        const canvas = document.getElementById('macroChart');
+        if (!canvas) return;
+        if (chartInstance) chartInstance.destroy();
+        const days = [];
+        const d = new Date(currentDate.value + 'T12:00:00');
+        for (let i = macroChartDays.value - 1; i >= 0; i--) {
+          const dd = new Date(d);
+          dd.setDate(dd.getDate() - i);
+          days.push(dd.toISOString().split('T')[0]);
+        }
+        const datasets = [];
+        const macroKeys = [{k:'cal',label:'Calories',color:'#C17347'},{k:'prot',label:'Protéines (g)',color:'#4A7C59'},{k:'carb',label:'Glucides (g)',color:'#6B9E7A'},{k:'fat',label:'Lipides (g)',color:'#E8836B'},{k:'fib',label:'Fibres (g)',color:'#8A8078'}];
+        macroKeys.forEach(mk => {
+          const data = days.map(day => {
+            const dm = meals.value[day] || {};
+            let total = 0;
+            MEAL_SLOTS.forEach(slot => {
+              (dm[slot.id]||[]).forEach(item => {
+                const f = foodsMap.value[item.fid];
+                if (f) total += f.per100g[mk.k] * item.qty / 100;
+              });
+            });
+            return Math.round(total * 10) / 10;
+          });
+          datasets.push({label:mk.label,data,borderColor:mk.color,backgroundColor:mk.color+'20',tension:0.3,fill:true,pointRadius:4,pointBackgroundColor:mk.color});
+        });
+        const labels = days.map(d => {
+          const dt = new Date(d+'T12:00:00');
+          return dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'});
+        });
+        chartInstance = new Chart(canvas, {
+          type:'line',
+          data:{labels,datasets},
+          options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{position:'bottom',labels:{font:{size:10},usePointStyle:true,padding:12}}},
+            scales:{
+              y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'}},
+              x:{grid:{display:false}}
+            },
+            interaction:{intersect:false,mode:'index'}
+          }
+        });
+      });
+    }
+
+    watch([currentTab, macroChartDays, meals], () => {
+      if (currentTab.value === 'macros') renderChart();
+    }, {deep:true});
+
+    // Filled days
+    const filledDays = computed(() => {
+      return Object.keys(meals.value).filter(d => {
+        const dm = meals.value[d];
+        return MEAL_SLOTS.some(s => dm[s.id]?.length > 0);
+      }).sort().reverse();
+    });
+
+    // Init
+    onMounted(() => {
+      loadData();
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(()=>{});
+      }
+    });
+
+    function getDayMacroValue(day, key) {
+      const dm = meals.value[day] || {};
+      let total = 0;
+      MEAL_SLOTS.forEach(slot => {
+        (dm[slot.id]||[]).forEach(item => {
+          const f = foodsMap.value[item.fid];
+          if (f) total += f.per100g[key] * item.qty / 100;
+        });
+      });
+      return Math.round(total * 10) / 10;
+    }
+
+    async function searchAndFill() {
+      if (!editFood.value?.name) return;
+      const result = await searchFoodNutrition(editFood.value.name);
+      if (result) {
+        editFood.value.per100g = {cal:result.cal||0,prot:result.prot||0,carb:result.carb||0,fat:result.fat||0,fib:result.fib||0};
+        showToast('Valeurs trouvées ✓');
+      }
+    }
+
+    function mapIngredient(idx) {
+      const item = editRecipe.value.ingredients[idx];
+      const match = foods.value.find(f => fuzzyMatch(f.name, item.name || ''));
+      if (match) {
+        item.fid = match.id;
+        showToast('Lié à: ' + match.name);
+      } else {
+        editFood.value = {id:uid(),name:item.name||'',emoji:'🍽️',cat:'other',state:null,per100g:{cal:0,prot:0,carb:0,fat:0,fib:0},isNew:true};
+        showAddFood.value = true;
+      }
+    }
+
+    return {
+      currentTab, currentDate, toast, foods, recipes, meals, goals, apiKey, darkMode, lastMealChoices,
+      showAddMeal, addMealSlot, showRecipeDetail, activeRecipe, showAddRecipe, showFoodDB, showSettings,
+      showAddFood, showMacroDetail, showExportRecipe, showImportRecipe, showPhotoModal, showConfirmDuplicate,
+      duplicateInfo,
+      recipeSearch, recipeCatFilter, foodSearch, addMealSearch, addMealMode,
+      editRecipe, editFood, recipeServingsOverride, addMealItems, addMealFromRecipe,
+      foodsMap, dayMeals, dayMacros, filteredRecipes, filteredFoods, filledDays,
+      MEAL_SLOTS, FOOD_CATS,
+      showToast, prevDay, nextDay, goToday, isToday, formatDate,
+      openAddMeal, addFoodToMeal, addRecipeToMeal, confirmAddMeal, removeMealItem,
+      saveAsRecipe, getPreviousMeals, usePreviousMeal,
+      openRecipe, saveRecipeServings, openNewRecipe, saveRecipe, finalizeSaveRecipe, deleteRecipe,
+      exportRecipeText, exportIngredientsText, copyText, exportOptions,
+      openNewFood, saveFood, calcMacros, scaleIngredients,
+      exportAll, importData,
+      importRecipeUrl, importRecipeText, importLoading, importRecipeFromUrl, importRecipeFromText,
+      processPhoto, photoLoading, photoResults, confirmPhotoResults,
+      searchFoodNutrition, searchFoodLoading,
+      macroChartDays, renderChart, uid, fuzzyMatch,
+      getDayMacroValue, searchAndFill, mapIngredient,
+    };
+  },
+
+  template: `
+<div class="app">
+  <!-- Toast -->
+  <div v-if="toast" class="toast">{{ toast }}</div>
+
+  <!-- ===== DASHBOARD ===== -->
+  <template v-if="currentTab==='dashboard'">
+    <div class="header">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="header-title">🌱 VegTrack</div>
+          <div class="header-sub">Suivi macro vegan</div>
+        </div>
+        <button class="btn btn-sm btn-secondary" v-if="!isToday()" @click="goToday">Aujourd'hui</button>
+      </div>
+    </div>
+
+    <!-- Date nav -->
+    <div class="date-nav">
+      <button class="date-nav-btn" @click="prevDay">‹</button>
+      <div class="date-nav-text">{{ formatDate(currentDate) }}</div>
+      <button class="date-nav-btn" @click="nextDay">›</button>
+    </div>
+
+    <!-- Macro pills -->
+    <div class="macro-bar">
+      <div class="macro-pill" :class="{reached: goals.cal.on && dayMacros.cal >= goals.cal.target, over: goals.cal.on && dayMacros.cal > goals.cal.target * 1.1}">
+        <div class="macro-pill-label">Calories</div>
+        <div class="macro-pill-value" style="color:var(--terracotta)">{{ dayMacros.cal }}</div>
+        <div class="macro-pill-target" v-if="goals.cal.on">/ {{ goals.cal.target }}</div>
+      </div>
+      <div class="macro-pill" :class="{reached: goals.prot.on && dayMacros.prot >= goals.prot.target}">
+        <div class="macro-pill-label">Protéines</div>
+        <div class="macro-pill-value" style="color:var(--green)">{{ dayMacros.prot }}g</div>
+        <div class="macro-pill-target" v-if="goals.prot.on">/ {{ goals.prot.target }}g</div>
+      </div>
+      <div class="macro-pill" :class="{reached: goals.carb.on && dayMacros.carb >= goals.carb.target}">
+        <div class="macro-pill-label">Glucides</div>
+        <div class="macro-pill-value" style="color:var(--green-light)">{{ dayMacros.carb }}g</div>
+        <div class="macro-pill-target" v-if="goals.carb.on">/ {{ goals.carb.target }}g</div>
+      </div>
+      <div class="macro-pill" :class="{reached: goals.fat.on && dayMacros.fat >= goals.fat.target}">
+        <div class="macro-pill-label">Lipides</div>
+        <div class="macro-pill-value" style="color:var(--coral)">{{ dayMacros.fat }}g</div>
+        <div class="macro-pill-target" v-if="goals.fat.on">/ {{ goals.fat.target }}g</div>
+      </div>
+      <div class="macro-pill" :class="{reached: goals.fib.on && dayMacros.fib >= goals.fib.target}">
+        <div class="macro-pill-label">Fibres</div>
+        <div class="macro-pill-value" style="color:var(--warm-gray)">{{ dayMacros.fib }}g</div>
+        <div class="macro-pill-target" v-if="goals.fib.on">/ {{ goals.fib.target }}g</div>
+      </div>
+    </div>
+
+    <!-- Meal slots -->
+    <div v-for="slot in MEAL_SLOTS" :key="slot.id" class="meal-slot">
+      <div class="meal-slot-header">
+        <div class="meal-slot-info">
+          <span class="meal-slot-emoji">{{ slot.emoji }}</span>
+          <div>
+            <div class="meal-slot-name">{{ slot.name }}</div>
+            <div class="meal-slot-cals" v-if="(dayMeals[slot.id]||[]).length">
+              {{ calcMacros(dayMeals[slot.id], foodsMap).cal }} kcal
+            </div>
+          </div>
+        </div>
+        <button class="meal-slot-add" @click="openAddMeal(slot.id)">+</button>
+      </div>
+      <div class="meal-items" v-if="(dayMeals[slot.id]||[]).length">
+        <div class="meal-item" v-for="(item, idx) in dayMeals[slot.id]" :key="idx">
+          <div class="meal-item-left">
+            <span class="meal-item-emoji">{{ foodsMap[item.fid]?.emoji || '🍽️' }}</span>
+            <span class="meal-item-name">{{ foodsMap[item.fid]?.name || 'Inconnu' }}</span>
+            <span class="meal-item-qty">{{ item.qty }}{{ item.unit }}</span>
+          </div>
+          <span class="meal-item-cals">{{ Math.round((foodsMap[item.fid]?.per100g?.cal||0) * item.qty / 100) }} kcal</span>
+          <button class="meal-item-del" @click="removeMealItem(slot.id, idx)">×</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ===== RECIPES ===== -->
+  <template v-if="currentTab==='recipes'">
+    <div class="header">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="header-title">📖 Recettes</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm btn-secondary" @click="showImportRecipe=true">📥</button>
+          <button class="btn btn-sm btn-primary" @click="openNewRecipe">+ Nouvelle</button>
+        </div>
+      </div>
+    </div>
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input v-model="recipeSearch" placeholder="Rechercher une recette ou ingrédient...">
+    </div>
+    <div style="padding:0 16px 8px;overflow-x:auto;display:flex;gap:6px;scrollbar-width:none">
+      <span class="chip" :class="{active:recipeCatFilter==='all'}" @click="recipeCatFilter='all'">Toutes</span>
+      <span v-for="s in MEAL_SLOTS" :key="s.id" class="chip" :class="{active:recipeCatFilter===s.id}" @click="recipeCatFilter=s.id">{{ s.emoji }} {{ s.name }}</span>
+    </div>
+    <div class="list">
+      <div v-if="filteredRecipes.length===0" class="empty-state">
+        <div class="empty-state-emoji">🍽️</div>
+        <div class="empty-state-text">Aucune recette trouvée</div>
+      </div>
+      <div v-for="r in filteredRecipes" :key="r.id" class="recipe-card" @click="openRecipe(r)">
+        <span class="recipe-emoji">{{ r.emoji }}</span>
+        <div class="recipe-info">
+          <div class="recipe-name">{{ r.name }}</div>
+          <div class="recipe-meta">{{ r.servings }} portion(s) · {{ r.ingredients.length }} ingrédients</div>
+          <div class="recipe-macros-mini">
+            <span style="color:var(--terracotta)">{{ calcMacros(r.ingredients, foodsMap).cal }} kcal</span>
+            <span style="color:var(--green)">{{ calcMacros(r.ingredients, foodsMap).prot }}g prot</span>
+          </div>
+        </div>
+        <span style="color:var(--text-muted);font-size:18px">›</span>
+      </div>
+    </div>
+  </template>
+
+  <!-- ===== MACROS ===== -->
+  <template v-if="currentTab==='macros'">
+    <div class="header">
+      <div class="header-title">📊 Suivi Macros</div>
+    </div>
+    <div class="tab-bar mt-8">
+      <button class="tab" :class="{active:macroChartDays===7}" @click="macroChartDays=7;renderChart()">7 jours</button>
+      <button class="tab" :class="{active:macroChartDays===14}" @click="macroChartDays=14;renderChart()">14 jours</button>
+      <button class="tab" :class="{active:macroChartDays===30}" @click="macroChartDays=30;renderChart()">30 jours</button>
+    </div>
+    <div class="card mt-8">
+      <div class="chart-container"><canvas id="macroChart"></canvas></div>
+    </div>
+
+    <!-- Goals -->
+    <div class="section-title">🎯 Objectifs</div>
+    <div class="card">
+      <div v-for="(label, key) in {cal:'Calories (kcal)',prot:'Protéines (g)',carb:'Glucides (g)',fat:'Lipides (g)',fib:'Fibres (g)'}" :key="key" class="setting-row">
+        <div>
+          <div class="setting-label">{{ label }}</div>
+          <input v-if="goals[key].on" type="number" class="input" style="width:80px;padding:6px 8px;margin-top:4px" v-model.number="goals[key].target">
+        </div>
+        <button class="toggle" :class="{on:goals[key].on}" @click="goals[key].on=!goals[key].on"></button>
+      </div>
+    </div>
+
+    <!-- Goal achievement -->
+    <div class="section-title">📅 Historique</div>
+    <div class="card" v-for="day in filledDays.slice(0,14)" :key="day">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-weight:600;font-size:13px">{{ formatDate(day) }}</span>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <template v-for="mk in ['cal','prot','carb','fat','fib']" :key="mk">
+          <div v-if="goals[mk].on" style="text-align:center">
+            <div style="font-size:10px;color:var(--text-muted)">{{ {cal:'Cal',prot:'Prot',carb:'Gluc',fat:'Lip',fib:'Fib'}[mk] }}</div>
+            <div :style="{fontSize:'13px',fontWeight:600,color:getDayMacroValue(day,mk)>=goals[mk].target?'var(--green)':'var(--coral)'}">
+              {{ getDayMacroValue(day,mk) }}
+            </div>
+            <div style="font-size:9px;color:var(--text-muted)">/ {{ goals[mk].target }}</div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </template>
+
+  <!-- ===== SETTINGS ===== -->
+  <template v-if="currentTab==='settings'">
+    <div class="header">
+      <div class="header-title">⚙️ Paramètres</div>
+    </div>
+    <div class="card mt-8">
+      <div class="setting-row">
+        <div><div class="setting-label">Mode sombre</div></div>
+        <button class="toggle" :class="{on:darkMode}" @click="darkMode=!darkMode"></button>
+      </div>
+      <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:6px">
+        <div class="setting-label">Clé API Claude (pour photo & import)</div>
+        <input type="password" class="input" v-model="apiKey" placeholder="sk-ant-...">
+      </div>
+    </div>
+    <div class="section-title">💾 Données</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-primary btn-full" @click="exportAll">📤 Exporter toutes les données</button>
+      <label class="btn btn-secondary btn-full" style="cursor:pointer">
+        📥 Importer des données
+        <input type="file" accept=".json" @change="importData" style="display:none">
+      </label>
+    </div>
+    <div class="section-title">📊 Base alimentaire</div>
+    <div class="card">
+      <button class="btn btn-secondary btn-full" @click="showFoodDB=true">Gérer les aliments ({{ foods.length }})</button>
+    </div>
+  </template>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <nav class="nav">
+    <button class="nav-item" :class="{active:currentTab==='dashboard'}" @click="currentTab='dashboard'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <span>Accueil</span>
+    </button>
+    <button class="nav-item" :class="{active:currentTab==='recipes'}" @click="currentTab='recipes'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span>Recettes</span>
+    </button>
+    <button class="nav-item add-btn" @click="openAddMeal(MEAL_SLOTS[0].id)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <button class="nav-item" :class="{active:currentTab==='macros'}" @click="currentTab='macros'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+      <span>Macros</span>
+    </button>
+    <button class="nav-item" :class="{active:currentTab==='settings'}" @click="currentTab='settings'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Réglages</span>
+    </button>
+  </nav>
+
+  <!-- ===== ADD MEAL MODAL ===== -->
+  <div v-if="showAddMeal" class="modal-overlay" @click.self="showAddMeal=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">{{ MEAL_SLOTS.find(s=>s.id===addMealSlot)?.emoji }} Ajouter un repas</div>
+
+      <!-- Choose slot -->
+      <div v-if="addMealMode==='choose'" class="mb-16">
+        <div class="input-group">
+          <label class="input-label">Créneau</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span v-for="s in MEAL_SLOTS" :key="s.id" class="chip" :class="{active:addMealSlot===s.id}" @click="addMealSlot=s.id">{{ s.emoji }} {{ s.name }}</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary btn-full" @click="addMealMode='recipe'">📖 Depuis une recette</button>
+          <button class="btn btn-secondary btn-full" @click="addMealMode='food'">🍎 Aliments individuels</button>
+          <button class="btn btn-secondary btn-full" @click="addMealMode='previous'">🕐 Repas précédent</button>
+          <label class="btn btn-outline btn-full" style="cursor:pointer">
+            📷 Photo du repas
+            <input type="file" accept="image/*" capture="environment" @change="processPhoto" style="display:none">
+          </label>
+        </div>
+        <div v-if="photoLoading" class="loading mt-8"><div class="spinner"></div></div>
+      </div>
+
+      <!-- From recipe -->
+      <div v-if="addMealMode==='recipe'">
+        <div class="search-bar" style="margin:0 0 12px">
+          <span class="search-icon">🔍</span>
+          <input v-model="addMealSearch" placeholder="Rechercher une recette...">
+        </div>
+        <div style="max-height:50vh;overflow-y:auto">
+          <div v-for="r in recipes.filter(r => !addMealSearch || r.name.toLowerCase().includes(addMealSearch.toLowerCase())).sort((a,b)=>(b.usageCount||0)-(a.usageCount||0))" :key="r.id" class="recipe-card" style="margin:0 0 8px" @click="addRecipeToMeal(r)">
+            <span class="recipe-emoji">{{ r.emoji }}</span>
+            <div class="recipe-info">
+              <div class="recipe-name">{{ r.name }}</div>
+              <div class="recipe-meta">{{ calcMacros(r.ingredients, foodsMap).cal }} kcal · {{ calcMacros(r.ingredients, foodsMap).prot }}g prot</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-full mt-8" @click="addMealMode='choose'">← Retour</button>
+      </div>
+
+      <!-- From food -->
+      <div v-if="addMealMode==='food'">
+        <div class="search-bar" style="margin:0 0 12px">
+          <span class="search-icon">🔍</span>
+          <input v-model="addMealSearch" placeholder="Rechercher un aliment...">
+        </div>
+        <div style="max-height:40vh;overflow-y:auto">
+          <div v-for="f in foods.filter(f => !addMealSearch || f.name.toLowerCase().includes(addMealSearch.toLowerCase())).slice(0,30)" :key="f.id" class="food-row" @click="addFoodToMeal(f)" style="cursor:pointer">
+            <span class="food-emoji">{{ f.emoji }}</span>
+            <span class="food-name">{{ f.name }}</span>
+            <span class="food-macro">{{ f.per100g.cal }}cal/100g</span>
+          </div>
+        </div>
+        <div v-if="addMealItems.length" class="divider"></div>
+        <div v-for="(item, idx) in addMealItems" :key="idx" class="ingredient-row">
+          <span>{{ foodsMap[item.fid]?.emoji }}</span>
+          <span class="ingr-name">{{ foodsMap[item.fid]?.name }}</span>
+          <input type="number" class="input" style="width:60px;padding:4px 6px;text-align:center" v-model.number="item.qty">
+          <span style="font-size:11px;color:var(--text-muted)">g</span>
+          <button class="meal-item-del" @click="addMealItems.splice(idx,1)">×</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-outline flex-1" @click="addMealMode='choose'">← Retour</button>
+          <button class="btn btn-primary flex-1" @click="confirmAddMeal" :disabled="!addMealItems.length">Ajouter ✓</button>
+        </div>
+        <button v-if="addMealItems.length" class="btn btn-secondary btn-full mt-8" @click="saveAsRecipe">💾 Sauvegarder en recette</button>
+      </div>
+
+      <!-- Previous meals -->
+      <div v-if="addMealMode==='previous'">
+        <div v-if="getPreviousMeals(addMealSlot).length===0" class="empty-state">
+          <div class="empty-state-emoji">🕐</div>
+          <div class="empty-state-text">Aucun repas précédent pour ce créneau</div>
+        </div>
+        <div v-for="prev in getPreviousMeals(addMealSlot)" :key="prev.date" class="card" style="margin:0 0 8px;cursor:pointer" @click="usePreviousMeal(prev)">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">{{ formatDate(prev.date) }}</div>
+          <div v-for="item in prev.items" :key="item.fid" style="font-size:13px">
+            {{ foodsMap[item.fid]?.emoji }} {{ foodsMap[item.fid]?.name }} — {{ item.qty }}{{ item.unit }}
+          </div>
+        </div>
+        <button class="btn btn-outline btn-full mt-8" @click="addMealMode='choose'">← Retour</button>
+      </div>
+
+      <!-- Confirm recipe items -->
+      <div v-if="addMealMode==='confirm_recipe'">
+        <div style="font-size:13px;color:var(--text-light);margin-bottom:12px">Ajustez les quantités consommées :</div>
+        <div v-for="(item, idx) in addMealItems" :key="idx" class="ingredient-row">
+          <span>{{ foodsMap[item.fid]?.emoji }}</span>
+          <span class="ingr-name">{{ foodsMap[item.fid]?.name }}</span>
+          <input type="number" class="input" style="width:60px;padding:4px 6px;text-align:center" v-model.number="item.qty" min="0">
+          <span style="font-size:11px;color:var(--text-muted)">{{ item.unit }}</span>
+          <button class="meal-item-del" @click="addMealItems.splice(idx,1)">×</button>
+        </div>
+        <div class="divider"></div>
+        <div style="display:flex;justify-content:space-around;text-align:center;font-size:12px">
+          <div><span style="font-weight:700;color:var(--terracotta)">{{ calcMacros(addMealItems, foodsMap).cal }}</span> kcal</div>
+          <div><span style="font-weight:700;color:var(--green)">{{ calcMacros(addMealItems, foodsMap).prot }}g</span> prot</div>
+          <div><span style="font-weight:700">{{ calcMacros(addMealItems, foodsMap).carb }}g</span> gluc</div>
+          <div><span style="font-weight:700">{{ calcMacros(addMealItems, foodsMap).fat }}g</span> lip</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-outline flex-1" @click="addMealMode='choose'">← Retour</button>
+          <button class="btn btn-primary flex-1" @click="confirmAddMeal">Ajouter ✓</button>
+        </div>
+        <button v-if="!addMealFromRecipe" class="btn btn-secondary btn-full mt-8" @click="saveAsRecipe">💾 Sauvegarder en recette</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RECIPE DETAIL MODAL ===== -->
+  <div v-if="showRecipeDetail && activeRecipe" class="modal-overlay" @click.self="showRecipeDetail=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <span style="font-size:40px">{{ activeRecipe.emoji }}</span>
+        <div style="flex:1">
+          <div style="font-size:18px;font-weight:700;font-family:Outfit,sans-serif">{{ activeRecipe.name }}</div>
+          <div style="font-size:12px;color:var(--text-muted)">{{ activeRecipe.cats.map(c => MEAL_SLOTS.find(s=>s.id===c)?.name).filter(Boolean).join(', ') }}</div>
+        </div>
+      </div>
+
+      <!-- Servings control -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <span style="font-size:13px;font-weight:600">Portions</span>
+        <div class="qty-adjust">
+          <button @click="recipeServingsOverride=Math.max(0.5,recipeServingsOverride-0.5)">−</button>
+          <input type="number" v-model.number="recipeServingsOverride" step="0.5" min="0.5">
+          <button @click="recipeServingsOverride+=0.5">+</button>
+        </div>
+        <button class="btn btn-sm btn-secondary" @click="saveRecipeServings">💾</button>
+      </div>
+
+      <!-- Macros -->
+      <div style="display:flex;justify-content:space-around;text-align:center;background:var(--cream);border-radius:12px;padding:12px;margin-bottom:16px">
+        <div><div style="font-size:10px;color:var(--text-muted)">CALORIES</div><div style="font-size:16px;font-weight:700;color:var(--terracotta)">{{ calcMacros(scaleIngredients(activeRecipe.ingredients,activeRecipe.servings,recipeServingsOverride), foodsMap).cal }}</div></div>
+        <div><div style="font-size:10px;color:var(--text-muted)">PROTÉINES</div><div style="font-size:16px;font-weight:700;color:var(--green)">{{ calcMacros(scaleIngredients(activeRecipe.ingredients,activeRecipe.servings,recipeServingsOverride), foodsMap).prot }}g</div></div>
+        <div><div style="font-size:10px;color:var(--text-muted)">GLUCIDES</div><div style="font-size:16px;font-weight:700">{{ calcMacros(scaleIngredients(activeRecipe.ingredients,activeRecipe.servings,recipeServingsOverride), foodsMap).carb }}g</div></div>
+        <div><div style="font-size:10px;color:var(--text-muted)">LIPIDES</div><div style="font-size:16px;font-weight:700;color:var(--coral)">{{ calcMacros(scaleIngredients(activeRecipe.ingredients,activeRecipe.servings,recipeServingsOverride), foodsMap).fat }}g</div></div>
+      </div>
+
+      <!-- Ingredients -->
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px">🛒 Ingrédients</div>
+      <div v-for="item in scaleIngredients(activeRecipe.ingredients, activeRecipe.servings, recipeServingsOverride)" :key="item.fid" class="ingredient-row">
+        <span>{{ foodsMap[item.fid]?.emoji || '🍽️' }}</span>
+        <span class="ingr-qty">{{ item.qty }}{{ item.unit }}</span>
+        <span class="ingr-name">{{ foodsMap[item.fid]?.name || 'Inconnu' }}</span>
+        <span class="ingr-cal">{{ Math.round((foodsMap[item.fid]?.per100g?.cal||0)*item.qty/100) }} kcal</span>
+      </div>
+
+      <!-- Steps -->
+      <div v-if="activeRecipe.steps?.length" style="font-weight:700;font-size:14px;margin:16px 0 8px">👩‍🍳 Préparation</div>
+      <div v-for="(step, i) in activeRecipe.steps" :key="i" class="step">
+        <span class="step-num">{{ i+1 }}</span>
+        <span class="step-text">{{ step }}</span>
+      </div>
+
+      <!-- Actions -->
+      <div class="divider"></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-primary btn-full" @click="showRecipeDetail=false;openAddMeal(activeRecipe.cats[0]||'lunch');addRecipeToMeal(activeRecipe)">🍽️ Ajouter en repas</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary flex-1" @click="showExportRecipe=true">📤 Exporter</button>
+          <button class="btn btn-secondary flex-1" @click="editRecipe={...JSON.parse(JSON.stringify(recipes.find(r=>r.id===activeRecipe.id)||activeRecipe))};showAddRecipe=true;showRecipeDetail=false">✏️ Modifier</button>
+        </div>
+        <button class="btn btn-danger btn-full" @click="deleteRecipe(activeRecipe.id)">🗑️ Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== EXPORT RECIPE MODAL ===== -->
+  <div v-if="showExportRecipe && activeRecipe" class="modal-overlay" @click.self="showExportRecipe=false">
+    <div class="modal-center">
+      <div class="modal-title">📤 Exporter la recette</div>
+      <div class="input-group">
+        <div class="chips mb-8">
+          <span class="chip" :class="{active:exportOptions.emojis}" @click="exportOptions.emojis=!exportOptions.emojis">Emojis</span>
+          <span class="chip" :class="{active:exportOptions.titles}" @click="exportOptions.titles=!exportOptions.titles">Titres</span>
+          <span class="chip" :class="{active:exportOptions.quantities}" @click="exportOptions.quantities=!exportOptions.quantities">Quantités</span>
+          <span class="chip" :class="{active:exportOptions.steps}" @click="exportOptions.steps=!exportOptions.steps">Étapes</span>
+        </div>
+      </div>
+      <pre style="background:var(--cream);border-radius:8px;padding:12px;font-size:12px;white-space:pre-wrap;max-height:40vh;overflow-y:auto;font-family:'DM Sans',sans-serif">{{ exportRecipeText(activeRecipe, exportOptions) }}</pre>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary flex-1" @click="copyText(exportRecipeText(activeRecipe, exportOptions))">📋 Copier tout</button>
+        <button class="btn btn-secondary flex-1" @click="copyText(exportIngredientsText(activeRecipe, exportOptions.quantities, exportOptions.emojis))">🛒 Ingrédients</button>
+      </div>
+      <button class="btn btn-outline btn-full mt-8" @click="showExportRecipe=false">Fermer</button>
+    </div>
+  </div>
+
+  <!-- ===== ADD/EDIT RECIPE MODAL ===== -->
+  <div v-if="showAddRecipe && editRecipe" class="modal-overlay" @click.self="showAddRecipe=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">{{ editRecipe.isNew ? '➕ Nouvelle recette' : '✏️ Modifier la recette' }}</div>
+      <div class="input-group">
+        <label class="input-label">Nom</label>
+        <input class="input" v-model="editRecipe.name" placeholder="Nom de la recette">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Emoji</label>
+        <input class="input" v-model="editRecipe.emoji" style="width:60px;text-align:center;font-size:24px">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Catégories</label>
+        <div class="chips">
+          <span v-for="s in MEAL_SLOTS" :key="s.id" class="chip" :class="{active:editRecipe.cats.includes(s.id)}" @click="editRecipe.cats.includes(s.id)?editRecipe.cats=editRecipe.cats.filter(c=>c!==s.id):editRecipe.cats.push(s.id)">{{ s.emoji }} {{ s.name }}</span>
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Portions</label>
+        <input class="input" type="number" v-model.number="editRecipe.servings" min="1" style="width:80px">
+      </div>
+
+      <!-- Ingredients -->
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px">🛒 Ingrédients</div>
+      <div v-for="(item, idx) in editRecipe.ingredients" :key="idx" class="ingredient-row">
+        <span>{{ item.fid ? (foodsMap[item.fid]?.emoji||'🍽️') : '❓' }}</span>
+        <span class="ingr-name" v-if="item.fid">{{ foodsMap[item.fid]?.name }}</span>
+        <span class="ingr-name" v-else style="color:var(--coral)">{{ item.name || 'Non trouvé' }}
+          <button class="btn btn-sm" style="padding:2px 6px;font-size:10px;margin-left:4px" @click="mapIngredient(idx)">🔗 Lier</button>
+        </span>
+        <input type="number" class="input" style="width:55px;padding:4px;text-align:center" v-model.number="item.qty">
+        <span style="font-size:11px">{{ item.unit }}</span>
+        <button class="meal-item-del" @click="editRecipe.ingredients.splice(idx,1)">×</button>
+      </div>
+
+      <!-- Add ingredient search -->
+      <div style="margin-top:8px">
+        <input class="input" v-model="foodSearch" placeholder="🔍 Ajouter un ingrédient...">
+        <div v-if="foodSearch.trim()" style="max-height:200px;overflow-y:auto;background:var(--white);border:1px solid var(--cream-dark);border-radius:8px;margin-top:4px">
+          <div v-for="f in filteredFoods.slice(0,15)" :key="f.id" class="food-row" @click="editRecipe.ingredients.push({fid:f.id,qty:100,unit:'g'});foodSearch=''" style="cursor:pointer;padding:8px 12px">
+            <span class="food-emoji">{{ f.emoji }}</span>
+            <span class="food-name">{{ f.name }}</span>
+          </div>
+          <div v-if="filteredFoods.length===0" style="padding:12px;text-align:center">
+            <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Aucun aliment trouvé</div>
+            <button class="btn btn-sm btn-primary" @click="editFood={id:uid(),name:foodSearch,emoji:'🍽️',cat:'other',state:null,per100g:{cal:0,prot:0,carb:0,fat:0,fib:0},isNew:true};showAddFood=true">+ Ajouter "{{ foodSearch }}"</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Steps -->
+      <div style="font-weight:700;font-size:14px;margin:16px 0 8px">👩‍🍳 Étapes</div>
+      <div v-for="(step, idx) in editRecipe.steps" :key="idx" style="display:flex;align-items:start;gap:6px;margin-bottom:6px">
+        <span class="step-num" style="margin-top:8px">{{ idx+1 }}</span>
+        <textarea class="input" v-model="editRecipe.steps[idx]" style="min-height:40px;flex:1"></textarea>
+        <button class="meal-item-del" style="margin-top:8px" @click="editRecipe.steps.splice(idx,1)">×</button>
+      </div>
+      <button class="btn btn-sm btn-secondary" @click="editRecipe.steps.push('')">+ Ajouter une étape</button>
+
+      <div class="divider"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline flex-1" @click="showAddRecipe=false">Annuler</button>
+        <button class="btn btn-primary flex-1" @click="saveRecipe(editRecipe)">💾 Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DUPLICATE WARNING ===== -->
+  <div v-if="showConfirmDuplicate && duplicateInfo" class="modal-overlay" @click.self="showConfirmDuplicate=false">
+    <div class="modal-center">
+      <div class="modal-title">⚠️ Recettes similaires trouvées</div>
+      <div style="font-size:13px;margin-bottom:12px">Ces recettes existantes semblent proches :</div>
+      <div v-for="d in duplicateInfo.dupes" :key="d.id" class="card" style="margin:0 0 8px">
+        <div style="font-weight:600;font-size:13px">{{ d.emoji }} {{ d.name }}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-outline flex-1" @click="showConfirmDuplicate=false">Annuler</button>
+        <button class="btn btn-primary flex-1" @click="finalizeSaveRecipe(duplicateInfo.recipe)">Ajouter quand même</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== IMPORT RECIPE MODAL ===== -->
+  <div v-if="showImportRecipe" class="modal-overlay" @click.self="showImportRecipe=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">📥 Importer une recette</div>
+      <div class="input-group">
+        <label class="input-label">Depuis un lien</label>
+        <input class="input" v-model="importRecipeUrl" placeholder="https://...">
+        <button class="btn btn-primary btn-full mt-8" @click="importRecipeFromUrl" :disabled="importLoading">{{ importLoading ? 'Analyse en cours...' : '🔗 Importer depuis le lien' }}</button>
+      </div>
+      <div class="divider"></div>
+      <div class="input-group">
+        <label class="input-label">Depuis un texte</label>
+        <textarea class="input" v-model="importRecipeText" placeholder="Collez la recette ici..."></textarea>
+        <button class="btn btn-secondary btn-full mt-8" @click="importRecipeFromText" :disabled="importLoading">📝 Importer depuis le texte</button>
+      </div>
+      <div v-if="importLoading" class="loading"><div class="spinner"></div></div>
+      <button class="btn btn-outline btn-full mt-8" @click="showImportRecipe=false">Fermer</button>
+    </div>
+  </div>
+
+  <!-- ===== PHOTO RESULTS MODAL ===== -->
+  <div v-if="showPhotoModal" class="modal-overlay" @click.self="showPhotoModal=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">📷 Aliments détectés</div>
+      <div style="font-size:13px;color:var(--text-light);margin-bottom:12px">Confirmez ou modifiez les quantités :</div>
+      <div v-for="(r, idx) in photoResults" :key="idx" class="ingredient-row">
+        <span v-if="r.fid">{{ foodsMap[r.fid]?.emoji }}</span>
+        <span v-else>❓</span>
+        <span class="ingr-name">{{ r.fid ? foodsMap[r.fid]?.name : r.name }}</span>
+        <input type="number" class="input" style="width:60px;padding:4px 6px;text-align:center" v-model.number="r.qty">
+        <span style="font-size:11px">{{ r.unit }}</span>
+        <span v-if="!r.fid" style="font-size:10px;color:var(--coral)">non trouvé</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-outline flex-1" @click="showPhotoModal=false">Annuler</button>
+        <button class="btn btn-primary flex-1" @click="confirmPhotoResults">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ADD/EDIT FOOD MODAL ===== -->
+  <div v-if="showAddFood && editFood" class="modal-overlay" @click.self="showAddFood=false">
+    <div class="modal-center">
+      <div class="modal-title">{{ editFood.isNew ? '➕ Nouvel aliment' : '✏️ Modifier l\\'aliment' }}</div>
+      <div class="input-row">
+        <div class="input-group"><label class="input-label">Nom</label><input class="input" v-model="editFood.name"></div>
+        <div class="input-group" style="max-width:70px"><label class="input-label">Emoji</label><input class="input" v-model="editFood.emoji" style="text-align:center;font-size:20px"></div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Catégorie</label>
+        <select class="input" v-model="editFood.cat">
+          <option v-for="c in FOOD_CATS" :key="c.id" :value="c.id">{{ c.emoji }} {{ c.name }}</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label class="input-label">État</label>
+        <div class="chips">
+          <span class="chip" :class="{active:editFood.state===null}" @click="editFood.state=null">Normal</span>
+          <span class="chip" :class="{active:editFood.state==='raw'}" @click="editFood.state='raw'">Cru</span>
+          <span class="chip" :class="{active:editFood.state==='cooked'}" @click="editFood.state='cooked'">Cuit</span>
+        </div>
+      </div>
+      <div style="font-weight:700;font-size:13px;margin:12px 0 8px">Valeurs pour 100g</div>
+      <div class="input-row">
+        <div class="input-group"><label class="input-label">Calories</label><input class="input" type="number" v-model.number="editFood.per100g.cal"></div>
+        <div class="input-group"><label class="input-label">Protéines (g)</label><input class="input" type="number" step="0.1" v-model.number="editFood.per100g.prot"></div>
+      </div>
+      <div class="input-row">
+        <div class="input-group"><label class="input-label">Glucides (g)</label><input class="input" type="number" step="0.1" v-model.number="editFood.per100g.carb"></div>
+        <div class="input-group"><label class="input-label">Lipides (g)</label><input class="input" type="number" step="0.1" v-model.number="editFood.per100g.fat"></div>
+      </div>
+      <div class="input-row">
+        <div class="input-group"><label class="input-label">Fibres (g)</label><input class="input" type="number" step="0.1" v-model.number="editFood.per100g.fib"></div>
+        <div class="input-group">
+          <label class="input-label">&nbsp;</label>
+          <button class="btn btn-sm btn-secondary btn-full" @click="searchAndFill" :disabled="searchFoodLoading">{{ searchFoodLoading ? '⏳' : '🌐' }} Rechercher</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-outline flex-1" @click="showAddFood=false">Annuler</button>
+        <button class="btn btn-primary flex-1" @click="saveFood(editFood)">💾 Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FOOD DATABASE MODAL ===== -->
+  <div v-if="showFoodDB" class="modal-overlay" @click.self="showFoodDB=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="modal-title" style="margin-bottom:0">🥦 Base alimentaire</div>
+        <button class="btn btn-sm btn-primary" @click="openNewFood">+ Ajouter</button>
+      </div>
+      <input class="input mb-8" v-model="foodSearch" placeholder="🔍 Rechercher un aliment...">
+      <div style="max-height:60vh;overflow-y:auto">
+        <div v-for="cat in FOOD_CATS" :key="cat.id">
+          <div v-if="filteredFoods.filter(f=>f.cat===cat.id).length" style="font-weight:700;font-size:13px;padding:8px 0 4px;color:var(--green)">{{ cat.emoji }} {{ cat.name }}</div>
+          <div v-for="f in filteredFoods.filter(ff=>ff.cat===cat.id)" :key="f.id" class="food-row" @click="editFood={...f};showAddFood=true" style="cursor:pointer">
+            <span class="food-emoji">{{ f.emoji }}</span>
+            <div style="flex:1">
+              <span class="food-name">{{ f.name }}</span>
+              <span v-if="f.state" style="font-size:10px;color:var(--text-muted)"> ({{ f.state==='raw'?'cru':'cuit' }})</span>
+            </div>
+            <span class="food-macro">{{ f.per100g.cal }}cal · {{ f.per100g.prot }}g prot</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`
+}).mount('#app');
+</script>
+</body>
+</html>
