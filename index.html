@@ -833,6 +833,8 @@ const app = createApp({
     const recipeServingsOverride = ref(null);
     const addMealItems = ref([]);
     const addMealFromRecipe = ref(null);
+    const mealPortionScale = ref(1);
+    const mealPortionBase = ref([]);
     const showMorePrevious = ref(false);
 
     // Computed
@@ -967,8 +969,6 @@ const app = createApp({
 
     function addRecipeToMeal(recipe) {
       addMealFromRecipe.value = recipe;
-      const servings = recipeServingsOverride.value || recipe.savedServings || recipe.servings;
-      // Check if we had saved quantities for this recipe+slot
       const key = recipe.id + '_' + addMealSlot.value;
       const saved = lastMealChoices.value[key];
       if (saved && saved.items) {
@@ -977,7 +977,17 @@ const app = createApp({
         const scaled = scaleIngredients(recipe.ingredients, recipe.servings, 1);
         addMealItems.value = scaled.map(i => ({fid:i.fid, qty:i.qty, unit:i.unit}));
       }
+      mealPortionBase.value = addMealItems.value.map(i => i.qty);
+      mealPortionScale.value = 1;
       addMealMode.value = 'confirm_recipe';
+    }
+
+    function scaleMealPortion(newScale) {
+      const prev = mealPortionScale.value;
+      mealPortionScale.value = newScale;
+      addMealItems.value.forEach((item, i) => {
+        item.qty = Math.round(mealPortionBase.value[i] * newScale * 10) / 10;
+      });
     }
 
     function confirmAddMeal() {
@@ -1063,6 +1073,8 @@ const app = createApp({
 
     function usePreviousMeal(prevMeal) {
       addMealItems.value = JSON.parse(JSON.stringify(prevMeal.items));
+      mealPortionBase.value = addMealItems.value.map(i => i.qty);
+      mealPortionScale.value = 1;
       addMealMode.value = 'confirm_recipe';
     }
 
@@ -1348,6 +1360,8 @@ const app = createApp({
           addMealItems.value.push({fid:r.fid, qty:r.qty, unit:r.unit});
         }
       });
+      mealPortionBase.value = addMealItems.value.map(i => i.qty);
+      mealPortionScale.value = 1;
       showPhotoModal.value = false;
       addMealMode.value = 'confirm_recipe';
     }
@@ -1546,12 +1560,12 @@ const app = createApp({
       showAddFood, showMacroDetail, showExportRecipe, showImportRecipe, showPhotoModal, showConfirmDuplicate,
       duplicateInfo, showBulkAddFoods, bulkFoodsText, bulkLoading, bulkResults, showMorePrevious,
       recipeSearch, recipeCatFilter, foodSearch, addMealSearch, addMealMode, addMealRecipeCat,
-      editRecipe, editFood, recipeServingsOverride, addMealItems, addMealFromRecipe,
+      editRecipe, editFood, recipeServingsOverride, addMealItems, addMealFromRecipe, mealPortionScale,
       foodsMap, dayMeals, dayMacros, filteredRecipes, filteredFoods, filledDays,
       MEAL_SLOTS, FOOD_CATS, MACRO_KEYS,
       macroChartPeriod, macroChartOffset, historyWeekOffset,
       showToast, prevDay, nextDay, goToday, isToday, formatDate, formatDateShort,
-      openAddMeal, addFoodToMeal, addRecipeToMeal, confirmAddMeal, removeMealItem,
+      openAddMeal, addFoodToMeal, addRecipeToMeal, confirmAddMeal, removeMealItem, scaleMealPortion,
       saveAsRecipe, getPreviousMeals, usePreviousMeal,
       openRecipe, saveRecipeServings, openNewRecipe, saveRecipe, finalizeSaveRecipe, deleteRecipe,
       exportRecipeText, exportIngredientsText, copyText, exportOptions,
@@ -1933,7 +1947,16 @@ const app = createApp({
 
       <!-- Confirm recipe items -->
       <div v-if="addMealMode==='confirm_recipe'">
-        <div style="font-size:13px;color:var(--text-light);margin-bottom:12px">Ajustez les quantités consommées :</div>
+        <!-- Portion control -->
+        <div v-if="addMealFromRecipe" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;background:var(--cream);border-radius:var(--radius-sm);padding:10px 14px">
+          <span style="font-size:13px;font-weight:600">Portion</span>
+          <div class="qty-adjust">
+            <button @click="scaleMealPortion(Math.max(0.25, mealPortionScale - 0.25))">−</button>
+            <input type="number" :value="mealPortionScale" @change="scaleMealPortion(Math.max(0.25, parseFloat($event.target.value) || 1))" step="0.25" min="0.25" style="width:55px">
+            <button @click="scaleMealPortion(mealPortionScale + 0.25)">+</button>
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--text-light);margin-bottom:8px">Ajustez les quantités consommées :</div>
         <div v-for="(item, idx) in addMealItems" :key="idx" class="ingredient-row">
           <span>{{ foodsMap[item.fid]?.emoji }}</span>
           <span class="ingr-name">{{ foodsMap[item.fid]?.name }}</span>
