@@ -1830,10 +1830,30 @@ const app = createApp({
       <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:6px">
         <div class="setting-label">Clé API Claude</div>
         <input type="password" class="input" v-model="apiKey" placeholder="sk-ant-...">
+        <details style="font-size:11px;color:var(--text-muted);line-height:1.5">
+          <summary style="cursor:pointer;color:var(--green)">Comment obtenir une clé ?</summary>
+          <div style="padding:6px 0">
+            1. Aller sur <a href="https://console.anthropic.com" target="_blank" style="color:var(--green)">console.anthropic.com</a><br>
+            2. Créer un compte ou se connecter<br>
+            3. Aller dans « API Keys »<br>
+            4. Cliquer « Create Key » et copier la clé<br>
+            <span style="color:var(--terracotta)">💡 Un crédit d'essai est offert. Ensuite, la tarification est à l'usage.</span>
+          </div>
+        </details>
       </div>
       <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:6px">
         <div class="setting-label">Clé API OpenAI</div>
         <input type="password" class="input" v-model="openaiKey" placeholder="sk-...">
+        <details style="font-size:11px;color:var(--text-muted);line-height:1.5">
+          <summary style="cursor:pointer;color:var(--green)">Comment obtenir une clé ?</summary>
+          <div style="padding:6px 0">
+            1. Aller sur <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--green)">platform.openai.com/api-keys</a><br>
+            2. Créer un compte ou se connecter<br>
+            3. Cliquer « Create new secret key »<br>
+            4. Copier la clé (elle ne sera plus visible après)<br>
+            <span style="color:var(--terracotta)">💡 Un crédit d'essai peut être offert. Ensuite, la tarification est à l'usage.</span>
+          </div>
+        </details>
       </div>
     </div>
     <div class="section-title">💾 Données</div>
